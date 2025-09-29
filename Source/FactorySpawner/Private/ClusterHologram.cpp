@@ -30,8 +30,6 @@ void AClusterHologram::BeginPlay()
 
 	FBuildPlan BuildPlan = AMyChatSubsystem::CurrentBuildPlan;
 
-	FTransform ActorTransform = GetActorTransform();
-
 	for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
 	{
 		TArray<UStaticMesh*> StaticMeshes = UBuildableCache::GetStaticMesh(Unit.Buildable);
