@@ -18,11 +18,11 @@ namespace {
 		}
 		return static_cast<EMachineType>(EnumValue);
 	}
+
 	static TArray<FClusterConfig> DefaultClusterConfig = {
 		{ 3, EMachineType::Smelter, TOptional<FString>(TEXT("IngotIron"))},
 		{ 3, EMachineType::Constructor, TOptional<FString>(TEXT("IronPlate")) },
-		{ 2, EMachineType::Assembler, TOptional<FString>(TEXT("Motor")) },
-		{ 2, EMachineType::Manufacturer, TOptional<FString>(TEXT("Computer")) }
+		{ 2, EMachineType::Constructor, TOptional<FString>(TEXT("Wire")) },
 	};
 
 	void SelectRecipeWithBuildGun(UWorld* World) {

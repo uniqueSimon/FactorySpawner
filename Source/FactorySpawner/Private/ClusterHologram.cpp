@@ -55,6 +55,11 @@ AActor* AClusterHologram::Construct(TArray<AActor*>& out_children, FNetConstruct
 	FBuildPlan BuildPlan = AMyChatSubsystem::CurrentBuildPlan;
 
 	UWorld* World = GetWorld();
+
+	if (BuildPlan.BuildableUnits.Num() == 0) {
+		FFactorySpawnerModule::ChatLog(World, "Nothing to build! Define first a factory with this command: /FactorySpawner <number> <machine type> <recipe>");
+	}
+
 	FTransform ActorTransform = GetActorTransform();
 
 	SpawnBuildPlan(BuildPlan, World, ActorTransform);
@@ -74,13 +79,15 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 	for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
 	{
 		TSubclassOf<AFGBuildable> BuildableClass = UBuildableCache::GetBuildableClass(Unit.Buildable);
-
 		TSubclassOf< UFGBuildingDescriptor > DescriptorClass = RecipeManager->FindBuildingDescriptorByClass(BuildableClass);
 
+		if (!DescriptorClass) {
+			// If buildable has not been unlocked, the descriptor is null! I just skip that for now.
+			continue;
+		}
 		TArray< TSubclassOf< UFGRecipe > > Recipes = RecipeManager->FindRecipesByProduct(DescriptorClass);
 
 		TSubclassOf< UFGRecipe >Recipe = Recipes[0];
-
 		UFGRecipe* RecipeCDO = Recipe->GetDefaultObject<UFGRecipe>();
 
 		for (const FItemAmount& Item : RecipeCDO->GetIngredients())

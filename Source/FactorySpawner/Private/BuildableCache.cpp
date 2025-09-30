@@ -115,8 +115,13 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(FString& Recipe, TSubclas
 			RecipeName.RemoveFromEnd(TEXT("_C"));
 			RecipeNames.Add(RecipeName);
 		}
-		FString RecipeNamesJoined = FString::Join(RecipeNames, TEXT(", "));
-		FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Following recipes are available for machine %s: %s"), *ProducedIn->GetName(), *RecipeNamesJoined));
+		if (RecipeNames.Num() == 0) {
+			FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("The machine %s has not been unlocked yet!"), *ProducedIn->GetName()));
+		}
+		else {
+			FString RecipeNamesJoined = FString::Join(RecipeNames, TEXT(", "));
+			FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Following recipes are available for machine %s: %s"), *ProducedIn->GetName(), *RecipeNamesJoined));
+		}
 		return nullptr;
 	}
 

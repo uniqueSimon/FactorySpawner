@@ -79,7 +79,7 @@ public:
 	EExecutionStatus ExecuteCommand_Implementation(class UCommandSender* Sender, const TArray<FString>& Arguments, const FString& Label) override;
 
 	void BeginPlay() override;
-
+	
 private:
 	static FBuildPlan CalculateClusterSetup(UWorld* World, TArray< FClusterConfig>& ClusterConfig);
 };
