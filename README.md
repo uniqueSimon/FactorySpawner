@@ -1,35 +1,77 @@
-Mod for the Game Satisfactory
+# Factory Spawner
+https://ficsit.app/mod/FactorySpawner
 
-FactorySpawner takes the hassle out of manually placing and wiring every machine. Simply tell it what you want to produce and how many machines you need, and it will:
+**Factory Spawner** takes the hassle out of manually placing and wiring every machine.  
+Simply tell it what you want to produce and how many machines you need, and it will:
 
-- Spawn the requested machines and set their recipes
+- ✅ Spawn the requested machines and set their recipes  
+- 🔄 Automatically connect everything with belts  
+- ⚡ Wire up power poles and connect them to the grid  
+- 🛠️ Handle splitters, mergers, and constructors for smooth production chains  
 
-- Automatically connect everything with belts
+---
 
-- Wire up power poles and connect them to the grid
+## Usage
 
-- Handle splitters, mergers, and constructors for smooth production chains
+### Quick Start
+- Unlock the Schematic "Factory Spawner" (Tier 0).
+- Select the Recipe: Production → Manufacturers → Factory Spawner
+- Just place the demo factory.
 
-Usage:
+![Demo Screenshot](https://raw.githubusercontent.com/uniqueSimon/FactorySpawner/refs/heads/master/Images/screenshot.PNG)
 
-For a demo factory, just place the "Factory Spawner" - buildable.
 
+### Customize Factory
 Open the chat and type:
+```
+/FactorySpawner {number} {machine type} {recipe}
+```
+(without curly braces)
 
-/FactorySpawner {number} {machine type} {recipe} (without curly braces)
+- **number** → Number of machines in a row
+- **machine type** → Smelter, Constructor, Assembler, Foundry, or Manufacturer
+- **recipe** (optional) → e.g. IngotIron, IronPlate, Motor, Computer
 
-- number: Number of machines in a row
-- machine type: Smelter, Constructor, Assembler, Foundry or Manufacturer (others currently not supported)
-- recipe: e. g. IngotIron, IronPlate, Motor, Computer
+Afterwards, place the **Factory Spawner** Recipe again. The factory will have changed!
 
-You can chain multiple commands, separated by commas. This results in multiple rows of machines:
+You can chain multiple commands, separated by commas.
+```
+/FactorySpawner {number 1} {machine type 1} {recipe 1}, {number 2} {machine type 2} {recipe 2}
+```
 
-/FactorySpawner 2 Smelter IronIngot, 3 Constructor IronPlate
+---
 
-This spawns 2 Smelters making Iron Ingots and 3 Constructors making Iron Plates, all connected with belts and power.
+## Examples
 
+This spawns **2 Smelters** making Iron Ingots and **3 Constructors** making Iron Plates, all connected with belts and power:
+
+```
+/FactorySpawner 2 Smelter IngotIron, 3 Constructor IronPlate
+```
+
+Here is the config from the screenshot (without recipes).
+```
+/FactorySpawner 12 Smelter, 10 Constructor, 5 Foundry, 10 Constructor, 4 Assembler, 3 Manufacturer
+```
 You can also control which belts are used:
-
+```
 /FactorySpawner BeltTier 3
+```
 
-This forces the mod to use Mk3 belts (default Mk1).
+This forces the mod to use **Mk3 belts** (default: Mk1).
+
+---
+
+## Safe to Uninstall
+
+All placed buildables are just **vanilla ones**, so you can safely uninstall the mod at any time.
+
+## Future plans
+- Add all remaining machines
+- Add conveyor lifts (Have to find out how to spawn them properly)
+- Improve preview hologram
+- Support decimal values, e. g. 3.5 means 4 machines with the last one running on 50%
+
+## Feedback on Discord
+
+https://discord.gg/Yzgw9yQK
