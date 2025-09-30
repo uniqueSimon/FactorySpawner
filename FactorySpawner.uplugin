@@ -1,12 +1,12 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.0.0",
+	"VersionName": "1.0.1",
 	"FriendlyName": "FactorySpawner",
-	"Description": "",
+	"Description": "Spawn factories instantly by typing in what machines and recipes you want — everything auto-connects with belts and power.",
 	"Category": "Modding",
 	"CreatedBy": "Simon",
-	"CreatedByURL": "",
+	"CreatedByURL": "https://github.com/uniqueSimon/FactorySpawner",
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
@@ -28,6 +28,6 @@
 			"SemVersion": "^3.11.3"
 		}
 	],
-	"SemVersion": "1.0.0",
+	"SemVersion": "1.0.1",
 	"GameVersion": ">=416835"
 }
