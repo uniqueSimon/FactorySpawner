@@ -14,7 +14,7 @@ Simply tell it what you want to produce and how many machines you need, and it w
 ## Usage
 
 ### Quick Start
-- Unlock the Schematic "Factory Spawner" (Tier 0).
+- Unlock the Schematic "Factory Spawner" (Tier 2).
 - Select the Recipe: Production → Manufacturers → Factory Spawner
 - Just place the demo factory.
 
@@ -71,6 +71,10 @@ All placed buildables are just **vanilla ones**, so you can safely uninstall the
 - Add conveyor lifts (Have to find out how to spawn them properly)
 - Improve preview hologram
 - Support decimal values, e. g. 3.5 means 4 machines with the last one running on 50%
+
+## Known issues
+- The schematic can be unlocked before splitter and merger. In that case those are not added to the cost calculation. I should add that dependency.
+- You can spawn machines that have not yet been unlocked, like manufacturers.
 
 ## Feedback on Discord
 
