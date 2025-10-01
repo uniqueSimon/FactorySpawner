@@ -62,6 +62,19 @@ This forces the mod to use **Mk3 belts** (default: Mk1).
 
 ---
 
+## ⚡ Automatically Generate Commands
+
+👉 [**Open Satisfactory Planner**](https://uniquesimon.github.io/satisfactory-planner/)
+
+With this tool you can **plan your factories online** and instantly generate a **config command string**.  
+No manual typing required — just:
+
+1. Design your factory setup in the planner.  
+2. Copy the generated config string to your clipboard.  
+3. Paste it directly into the in-game chat (`Ctrl + V`).  
+
+Your factory will be ready in seconds! 🚀
+
 ## Safe to Uninstall
 
 All placed buildables are just **vanilla ones**, so you can safely uninstall the mod at any time.
