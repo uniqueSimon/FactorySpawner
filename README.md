@@ -91,6 +91,10 @@ All placed buildables are just **vanilla ones**, so you can safely uninstall the
 - Add conveyor lifts (Have to find out how to spawn them properly)
 - Improve preview hologram
 
+## Known issues
+- The schematic can be unlocked before splitter and merger. In that case those are not added to the cost calculation. I should add that dependency.
+- You can spawn machines that have not yet been unlocked, like manufacturers.
+
 ## Feedback on Discord
 
 https://discord.gg/Yzgw9yQK
