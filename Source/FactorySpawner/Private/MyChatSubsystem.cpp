@@ -76,18 +76,20 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
 		TArray<FString> Splitted;
 		Row.ParseIntoArray(Splitted, TEXT(" "));
 		if (Splitted.Num() >= 2 && Splitted.Num() <= 3) {
-			if (Splitted[0].IsNumeric() && FCString::Atoi(*Splitted[0]) > 0) {
-				int32 Count = FCString::Atoi(*Splitted[0]);
+
+			float Value;
+			if (LexTryParseString(Value, *Splitted[0]) && Value > 0)
+			{
 				EMachineType PlantType = StringToMachineType(Splitted[1]);
 				if (PlantType == EMachineType::Invalid) {
 					Sender->SendChatMessage(FString::Printf(TEXT("This machine type does not exist: %s. Use one of those: Smelter, Constructor, Assembler, Foundry, Manufacturer"), *Splitted[1]));
 					return EExecutionStatus::BAD_ARGUMENTS;
 				}
 				if (Splitted.Num() == 2) {
-					ClusterConfig.Add(FClusterConfig{ Count,PlantType });
+					ClusterConfig.Add(FClusterConfig{ Value,PlantType });
 				}
 				else {
-					ClusterConfig.Add(FClusterConfig{ Count,PlantType, Splitted[2] });
+					ClusterConfig.Add(FClusterConfig{ Value,PlantType, Splitted[2] });
 				}
 			}
 			else {

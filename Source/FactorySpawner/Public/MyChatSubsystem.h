@@ -35,7 +35,7 @@ enum class EBuildable : uint8 {
 
 struct FClusterConfig
 {
-	int32 Count;
+	float Count;
 	EMachineType MachineType;
 	TOptional<FString> RecipeName;
 };
@@ -46,6 +46,7 @@ struct FBuildableUnit
 	EBuildable Buildable;
 	FVector Location;
 	TOptional<FString> Recipe;
+	TOptional<float> Underclock;
 };
 
 struct FWireConnection {

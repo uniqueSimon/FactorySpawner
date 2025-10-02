@@ -13,6 +13,7 @@
 
 #include "FGRecipeManager.h"
 #include "FGTestBlueprintFunctionLibrary.h"
+#include "FGPlayerController.h"
 
 namespace
 {
@@ -147,6 +148,10 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
 	// Map to track spawned actors for each unit
 	TMap<FGuid, FBuiltThing> SpawnedActors;
 
+	AFGPlayerController* PlayerController = Cast<AFGPlayerController>(World->GetFirstPlayerController());
+	UFGManufacturerClipboardRCO* RCO = PlayerController->GetRemoteCallObjectOfClass<UFGManufacturerClipboardRCO>();
+	AFGCharacterPlayer* Player = Cast<AFGCharacterPlayer>(PlayerController->GetCharacter());
+
 	for (const FBuildableUnit& Unit : BuildableUnits)
 	{
 		FTransform Location = MoveTransform(ActorTransform, Unit.Location, Unit.Buildable == EBuildable::Merger);
@@ -166,13 +171,18 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
 			if (MachineClass)
 			{
 				Spawned = World->SpawnActor<AFGBuildable>(MachineClass, Location);
-
 				if (Unit.Recipe.IsSet())
 				{
 					FString RecipeName = Unit.Recipe.GetValue();
 					TSubclassOf<UFGRecipe> RecipeClass = UBuildableCache::GetRecipeClass(RecipeName, MachineClass, World);
 					if (RecipeClass) {
-						CastChecked<AFGBuildableManufacturer>(Spawned)->SetRecipe(RecipeClass);
+						AFGBuildableManufacturer* Manufacturer = Cast<AFGBuildableManufacturer>(Spawned);
+						if (Unit.Underclock) {
+							RCO->Server_PasteSettings(Manufacturer, Player, RecipeClass, Unit.Underclock.GetValue(), 1.0f, nullptr, nullptr);
+						}
+						else {
+							Manufacturer->SetRecipe(RecipeClass);
+						}
 					}
 				}
 			}

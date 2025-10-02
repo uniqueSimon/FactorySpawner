@@ -50,11 +50,17 @@ namespace
 		}}
 	};
 
-	void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, TOptional<FString>& Recipe, int32 XCursor, int32 YCursor, FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue, FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex, bool bLastIndex)
+	void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, TOptional<FString>& Recipe, float Underclock, int32 XCursor, int32 YCursor, FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue, FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex, bool bLastIndex)
 	{
 		FGuid MachineId = FGuid::NewGuid();
 		FVector MachineLocation = FVector(XCursor, YCursor, 0);
-		BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe });
+
+		if (bFirstUnitInRow && Underclock > 0) {
+			BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe, Underclock });
+		}
+		else {
+			BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe });
+		}
 
 		if (!bEvenIndex) {
 			if (bLastIndex) {
@@ -145,6 +151,8 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FClust
 		FClusterConfig RowConfig = ClusterConfig[RowIndex];
 		EMachineType MachineType = RowConfig.MachineType;
 		TOptional<FString>Recipe = RowConfig.RecipeName;
+		int32 Count = FMath::CeilToInt(RowConfig.Count);
+		float Underclock = Count - RowConfig.Count;
 
 		EBuildable MachineBuildable = static_cast<EBuildable>(MachineType);
 		UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
@@ -173,7 +181,7 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FClust
 		FConnectionQueue ConnectionQueue;
 		for (int32 i = 0; i < RowConfig.Count; ++i)
 		{
-			CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, XCursor, YCursor, MachineConfig, ConnectionQueue, CachedPowerConnections, i == 0, i % 2 == 0, i == RowConfig.Count - 1);
+			CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, Underclock, XCursor, YCursor, MachineConfig, ConnectionQueue, CachedPowerConnections, i == 0, i % 2 == 0, i == RowConfig.Count - 1);
 
 			XCursor += MachineConfig.Width;
 
