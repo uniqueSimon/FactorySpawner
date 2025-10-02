@@ -2,6 +2,7 @@
 #include "FactorySpawner.h"
 #include "FGRecipe.h"
 #include "BuildableCache.h"
+#include "FactoryCommandParser.h"
 
 namespace
 {
@@ -50,12 +51,17 @@ namespace
 		}}
 	};
 
-	void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, TOptional<FString>& Recipe, TOptional<float> Underclock, int32 XCursor, int32 YCursor, FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue, FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex, bool bLastIndex)
+	void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, TOptional<FString>& Recipe, bool bHasUnderclock, TOptional<float> Underclock, int32 XCursor, int32 YCursor, FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue, FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex, bool bLastIndex)
 	{
 		FGuid MachineId = FGuid::NewGuid();
 		FVector MachineLocation = FVector(XCursor, YCursor, 0);
 
-		BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe, Underclock });
+		if (bHasUnderclock) {
+			BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe, Underclock });
+		}
+		else {
+			BuildPlan.BuildableUnits.Add({ MachineId ,MachineType, MachineLocation, Recipe });
+		}
 
 		if (!bEvenIndex) {
 			if (bLastIndex) {
@@ -133,7 +139,7 @@ namespace
 	}
 }
 
-FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FClusterConfig>& ClusterConfig)
+FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FFactoryCommandToken>& ClusterConfig)
 {
 	FBuildPlan BuildPlan;
 	int32 YCursor = 0;
@@ -143,11 +149,12 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FClust
 
 	for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
 	{
-		FClusterConfig RowConfig = ClusterConfig[RowIndex];
+		FFactoryCommandToken RowConfig = ClusterConfig[RowIndex];
 		EMachineType MachineType = RowConfig.MachineType;
-		TOptional<FString>Recipe = RowConfig.RecipeName;
+		TOptional<FString>Recipe = RowConfig.Recipe;
 		int32 Count = RowConfig.Count;
-		TOptional<float> Underclock = RowConfig.Underclock;
+		float Underclock = RowConfig.ClockPercent;
+		bool bHasUnderclock = RowConfig.bHasUnderclock;
 
 		EBuildable MachineBuildable = static_cast<EBuildable>(MachineType);
 		UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
@@ -176,7 +183,7 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray< FClust
 		FConnectionQueue ConnectionQueue;
 		for (int32 i = 0; i < Count; ++i)
 		{
-			CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, Underclock, XCursor, YCursor, MachineConfig, ConnectionQueue, CachedPowerConnections, i == 0, i % 2 == 0, i == Count - 1);
+			CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, bHasUnderclock, Underclock, XCursor, YCursor, MachineConfig, ConnectionQueue, CachedPowerConnections, i == 0, i % 2 == 0, i == Count - 1);
 
 			XCursor += MachineConfig.Width;
 

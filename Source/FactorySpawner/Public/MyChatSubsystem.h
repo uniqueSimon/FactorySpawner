@@ -5,6 +5,9 @@
 #include "FactorySpawner.h"
 #include "MyChatSubsystem.generated.h"
 
+class FFactoryCommandParser;
+struct FFactoryCommandToken;
+
 UENUM(BlueprintType)
 enum class EMachineType :uint8
 {
@@ -31,14 +34,6 @@ enum class EBuildable : uint8 {
 	Belt,
 	Lift,
 	PowerLine,
-};
-
-struct FClusterConfig
-{
-	int32 Count;
-	EMachineType MachineType;
-	TOptional<FString> RecipeName;
-	TOptional<float> Underclock;
 };
 
 struct FBuildableUnit
@@ -81,7 +76,8 @@ public:
 	EExecutionStatus ExecuteCommand_Implementation(class UCommandSender* Sender, const TArray<FString>& Arguments, const FString& Label) override;
 
 	void BeginPlay() override;
-	
+
 private:
-	static FBuildPlan CalculateClusterSetup(UWorld* World, TArray< FClusterConfig>& ClusterConfig);
+	FBuildPlan CalculateClusterSetup(UWorld* World, TArray< FFactoryCommandToken>& ClusterConfig);
+	EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
 };

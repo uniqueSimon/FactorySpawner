@@ -4,6 +4,9 @@
 #include "FGCharacterPlayer.h"
 #include "CommandSender.h"
 #include "BuildableCache.h"
+#include "FactoryCommandParser.h"
+#include "FactorySpawner.h"
+#include "FactoryCommandParser.h"
 
 namespace {
 	EMachineType StringToMachineType(const FString Value)
@@ -19,10 +22,10 @@ namespace {
 		return static_cast<EMachineType>(EnumValue);
 	}
 
-	static TArray<FClusterConfig> DefaultClusterConfig = {
-		{ 3, EMachineType::Smelter, TOptional<FString>(TEXT("IngotIron"))},
-		{ 3, EMachineType::Constructor, TOptional<FString>(TEXT("IronPlate")) },
-		{ 2, EMachineType::Constructor, TOptional<FString>(TEXT("Wire")) },
+	static TArray<FFactoryCommandToken> DefaultClusterConfig = {
+		{ 3, EMachineType::Smelter, TEXT("IngotIron")},
+		{ 3, EMachineType::Constructor,TEXT("IronPlate") },
+		{ 2, EMachineType::Constructor, TEXT("Wire") },
 	};
 
 	void SelectRecipeWithBuildGun(UWorld* World) {
@@ -48,75 +51,41 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
 	FString Joined = FString::Join(Arguments, TEXT(" "));
 	Sender->SendChatMessage(FString::Printf(TEXT("/FactorySpawner %s"), *Joined), FLinearColor::Green);
 
-	if (Arguments[0] == TEXT("BeltTier")) {
-		if (Arguments.Num() != 2) {
-			Sender->SendChatMessage(TEXT("Invalid syntax! Usage: /FactorySpawner BeltTier <number>"));
-			return EExecutionStatus::BAD_ARGUMENTS;
-		}
-		FString TierStr = Arguments[1];
-		if (TierStr.IsNumeric()) {
-			int32 Tier = FCString::Atoi(*TierStr);
-			if (Tier > 0 && Tier <= 8) {
-				UBuildableCache::SetBeltClass(Tier);
-				Sender->SendChatMessage(FString::Printf(TEXT("Set Belt Tier Mk%d"), Tier));
-				return EExecutionStatus::COMPLETED;
-			}
-		}
-		Sender->SendChatMessage(TEXT("BeltTier must be between 1 and 8"));
-		return EExecutionStatus::BAD_ARGUMENTS;
-
+	if (Arguments[0].Equals(TEXT("BeltTier"), ESearchCase::IgnoreCase))
+	{
+		return HandleBeltTierCommand(Arguments[1], Sender);
 	}
 
-	TArray<FString> Rows;
-	Joined.ParseIntoArray(Rows, TEXT(", "));
+	TArray<FFactoryCommandToken> CommandTokens;
+	FString OutError;
 
-	TArray<FClusterConfig> ClusterConfig;
-	for (FString& Row : Rows)
+	if (!FFactoryCommandParser::ParseCommand(Joined, CommandTokens, OutError))
 	{
-		TArray<FString> Splitted;
-		Row.ParseIntoArray(Splitted, TEXT(" "));
-		if (Splitted.Num() >= 2 && Splitted.Num() <= 4)
-		{
-			int32 Value;
-			if (LexTryParseString(Value, *Splitted[0]) && Value > 0)
-			{
-				EMachineType PlantType = StringToMachineType(Splitted[1]);
-				if (PlantType == EMachineType::Invalid) {
-					Sender->SendChatMessage(FString::Printf(TEXT("This machine type does not exist: %s. Use one of those: Smelter, Constructor, Assembler, Foundry, Manufacturer"), *Splitted[1]));
-					return EExecutionStatus::BAD_ARGUMENTS;
-				}
-				if (Splitted.Num() == 2) {
-					ClusterConfig.Add(FClusterConfig{ Value,PlantType });
-				}
-				else if (Splitted.Num() == 3) {
-					ClusterConfig.Add(FClusterConfig{ Value,PlantType, Splitted[2] });
-				}
-				else {
-					float UnderclockPercentage;
-					if (LexTryParseString(UnderclockPercentage, *Splitted[3]) && Value > 0 && Value < 100)
-					{
-						ClusterConfig.Add(FClusterConfig{ Value,PlantType, Splitted[2], UnderclockPercentage });
-					}
-
-				}
-			}
-			else {
-				Sender->SendChatMessage(TEXT("The number of machines must be greater than 0! Usage: /FactorySpawner <number> <machine type> <recipe (optional)>"));
-				return EExecutionStatus::BAD_ARGUMENTS;
-			}
-		}
-		else {
-			Sender->SendChatMessage(TEXT("Wrong number of arguments! Usage: /FactorySpawner <number> <machine type> <recipe (optional)>"));
-			return EExecutionStatus::BAD_ARGUMENTS;
-		}
+		UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *OutError);
+		Sender->SendChatMessage(OutError);
+		return EExecutionStatus::BAD_ARGUMENTS;
 	}
 
 	UWorld* World = GetWorld();
-	CurrentBuildPlan = CalculateClusterSetup(World, ClusterConfig);
+	CurrentBuildPlan = CalculateClusterSetup(World, CommandTokens);
 
 	SelectRecipeWithBuildGun(World);
 
 	return EExecutionStatus::COMPLETED;
+}
+
+EExecutionStatus AMyChatSubsystem::HandleBeltTierCommand(const FString& Input, UCommandSender* Sender) {
+	int32 Tier = 0;
+	if (LexTryParseString(Tier, *Input) && Tier > 0 && Tier <= 8)
+	{
+		UBuildableCache::SetBeltClass(Tier);
+		Sender->SendChatMessage(FString::Printf(TEXT("Set Belt Tier Mk%d"), Tier), FLinearColor::Green);
+		return EExecutionStatus::COMPLETED;
+	}
+	FString ErrorMsg = TEXT("BeltTier must be a number between 1 and 8");
+	UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *ErrorMsg);
+	Sender->SendChatMessage(ErrorMsg);
+	return EExecutionStatus::BAD_ARGUMENTS;
 }
 
 void AMyChatSubsystem::BeginPlay()
