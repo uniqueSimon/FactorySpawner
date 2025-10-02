@@ -75,9 +75,9 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
 	{
 		TArray<FString> Splitted;
 		Row.ParseIntoArray(Splitted, TEXT(" "));
-		if (Splitted.Num() >= 2 && Splitted.Num() <= 3) {
-
-			float Value;
+		if (Splitted.Num() >= 2 && Splitted.Num() <= 4)
+		{
+			int32 Value;
 			if (LexTryParseString(Value, *Splitted[0]) && Value > 0)
 			{
 				EMachineType PlantType = StringToMachineType(Splitted[1]);
@@ -88,8 +88,16 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
 				if (Splitted.Num() == 2) {
 					ClusterConfig.Add(FClusterConfig{ Value,PlantType });
 				}
-				else {
+				else if (Splitted.Num() == 3) {
 					ClusterConfig.Add(FClusterConfig{ Value,PlantType, Splitted[2] });
+				}
+				else {
+					float UnderclockPercentage;
+					if (LexTryParseString(UnderclockPercentage, *Splitted[3]) && Value > 0 && Value < 100)
+					{
+						ClusterConfig.Add(FClusterConfig{ Value,PlantType, Splitted[2], UnderclockPercentage });
+					}
+
 				}
 			}
 			else {
@@ -117,4 +125,6 @@ void AMyChatSubsystem::BeginPlay()
 
 	UWorld* World = GetWorld();
 	CurrentBuildPlan = CalculateClusterSetup(World, DefaultClusterConfig);
+
+	FFactorySpawnerModule::ChatLog(World, "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for automatic chat command generation!");
 }

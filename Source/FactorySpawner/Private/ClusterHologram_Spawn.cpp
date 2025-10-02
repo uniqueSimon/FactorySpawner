@@ -178,7 +178,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
 					if (RecipeClass) {
 						AFGBuildableManufacturer* Manufacturer = Cast<AFGBuildableManufacturer>(Spawned);
 						if (Unit.Underclock) {
-							RCO->Server_PasteSettings(Manufacturer, Player, RecipeClass, Unit.Underclock.GetValue(), 1.0f, nullptr, nullptr);
+							RCO->Server_PasteSettings(Manufacturer, Player, RecipeClass, Unit.Underclock.GetValue() / 100, 1.0f, nullptr, nullptr);
 						}
 						else {
 							Manufacturer->SetRecipe(RecipeClass);
