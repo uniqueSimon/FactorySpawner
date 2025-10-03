@@ -6,16 +6,48 @@
 
 namespace
 {
+    // ---------- helper types ----------
     struct FBeltConnector
     {
         FGuid UnitId;
-        int32 SocketNumber;
+        int32 SocketNumber = 0;
+    };
+
+    // Simple FIFO queue implemented with array + read index
+    struct FConnArrayQueue
+    {
+        TArray<FBeltConnector> Items;
+        int32 ReadIndex = 0;
+
+        void Reset()
+        {
+            Items.Reset();
+            ReadIndex = 0;
+        }
+        void Enqueue(const FBeltConnector& Item)
+        {
+            Items.Add(Item);
+        }
+        bool Dequeue(FBeltConnector& Out)
+        {
+            if (ReadIndex < Items.Num())
+            {
+                Out = Items[ReadIndex++];
+                // optionally shrink memory if ReadIndex grows large, but not necessary here
+                return true;
+            }
+            return false;
+        }
+        bool IsEmpty() const
+        {
+            return ReadIndex >= Items.Num();
+        }
     };
 
     struct FConnectionQueue
     {
-        TQueue<FBeltConnector> Input;
-        TQueue<FBeltConnector> Output;
+        FConnArrayQueue Input;
+        FConnArrayQueue Output;
     };
 
     struct FCachedPowerConnections
@@ -27,133 +59,167 @@ namespace
 
     struct FConnector
     {
-        int32 Index;
-        int32 LocationX;
+        int32 Index = 0;
+        int32 LocationX = 0;
     };
+
     struct FMachineConfig
     {
-        int32 Width;
-        int32 LengthFront;
-        int32 LengthBehind;
-        int32 PowerPoleY;
+        int32 Width = 0;
+        int32 LengthFront = 0;
+        int32 LengthBehind = 0;
+        int32 PowerPoleY = 0;
         TArray<FConnector> Input;
         TArray<FConnector> Output;
     };
 
-    TMap<EMachineType, TArray<FMachineConfig>> MachineConfigList = {
-        {EMachineType::Constructor,
-         {FMachineConfig(800, 500 + 400, 500 + 400, -500, {FConnector(1, 0)}, {FConnector(0, 0)})}},
-        {EMachineType::Smelter,
-         {FMachineConfig(500, 500 + 400, 400 + 400, -500, {FConnector(0, 0)}, {FConnector(1, 0)})}},
-        {EMachineType::Foundry,
-         {FMachineConfig(1000, 700 + 400, 400 + 400, -500, {FConnector(2, -200), FConnector(0, 200)},
-                         {FConnector(1, -200)})}},
-        {EMachineType::Assembler,
-         {FMachineConfig(900, 1000 + 400, 700 + 400, -900, {FConnector(1, -200), FConnector(2, 200)},
-                         {FConnector(0, 0)})}}, // width half step!
+    // Machine configuration map (static to avoid repeated construction)
+    static const TMap<EMachineType, TArray<FMachineConfig>> MachineConfigList = {
+        {EMachineType::Constructor, {FMachineConfig{800, 500 + 400, 500 + 400, -500, {{1, 0}}, {{0, 0}}}}},
+        {EMachineType::Smelter, {FMachineConfig{500, 500 + 400, 400 + 400, -500, {{0, 0}}, {{1, 0}}}}},
+        {EMachineType::Foundry, {FMachineConfig{1000, 700 + 400, 400 + 400, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
+        {EMachineType::Assembler, {FMachineConfig{900, 1000 + 400, 700 + 400, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
         {EMachineType::Manufacturer,
-         {FMachineConfig(1800, 1900 + 400, 900 + 400, -1100,
-                         {FConnector(4, -600), FConnector(2, -200), FConnector(1, 200), FConnector(0, 600)},
-                         {FConnector(3, 0)}),
-          FMachineConfig(1800, 1600 + 400, 900 + 400, -1100,
-                         {FConnector(4, -600), FConnector(2, -200), FConnector(1, 200)}, {FConnector(3, 0)})}}};
+         {FMachineConfig{1800, 1900 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
+          FMachineConfig{1800, 1600 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
 
-    void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, TOptional<FString>& Recipe,
-                               TOptional<float> Underclock, int32 XCursor, int32 YCursor, FMachineConfig& MachineConfig,
-                               FConnectionQueue& ConnectionQueue, FCachedPowerConnections& CachedPowerConnections,
-                               bool bFirstUnitInRow, bool bEvenIndex, bool bLastIndex)
+    // ---------- helpers to add units/connections ----------
+    inline void AddBuildableUnit(FBuildPlan& Plan, const FGuid& Id, EBuildable Type, const FVector& Location,
+                                 const TOptional<FString>& Recipe = TOptional<FString>(),
+                                 const TOptional<float>& Underclock = TOptional<float>())
     {
+        FBuildableUnit Unit;
+        Unit.Id = Id;
+        Unit.Buildable = Type;
+        Unit.Location = Location;
+        Unit.Recipe = Recipe;
+        Unit.Underclock = Underclock;
+        Plan.BuildableUnits.Add(MoveTemp(Unit));
+    }
+
+    inline void AddWire(FBuildPlan& Plan, const FGuid& From, const FGuid& To)
+    {
+        Plan.WireConnections.Add({From, To});
+    }
+
+    inline void AddBelt(FBuildPlan& Plan, const FGuid& FromUnit, int32 FromSocket, const FGuid& ToUnit, int32 ToSocket)
+    {
+        Plan.BeltConnections.Add({FromUnit, FromSocket, ToUnit, ToSocket});
+    }
+
+    // ---------- main per-machine setup ----------
+    void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, const TOptional<FString>& Recipe,
+                               const TOptional<float>& Underclock, int32 XCursor, int32 YCursor,
+                               const FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue,
+                               FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex,
+                               bool bLastIndex)
+    {
+        // create machine unit
         FGuid MachineId = FGuid::NewGuid();
-        FVector MachineLocation = FVector(XCursor, YCursor, 0);
+        const FVector MachineLocation = FVector((float) XCursor, (float) YCursor, 0.0f);
 
-        if (Underclock.IsSet())
-        {
-            BuildPlan.BuildableUnits.Add({MachineId, MachineType, MachineLocation, Recipe, Underclock});
-        }
-        else
-        {
-            BuildPlan.BuildableUnits.Add({MachineId, MachineType, MachineLocation, Recipe});
-        }
+        AddBuildableUnit(BuildPlan, MachineId, MachineType, MachineLocation, Recipe, Underclock);
 
+        // Power handling (even/odd indexing pattern)
         if (!bEvenIndex)
         {
             if (bLastIndex)
             {
-                // prev Power pole -> Machine
-                BuildPlan.WireConnections.Add({CachedPowerConnections.LastPole, MachineId});
+                // link previous pole -> this machine
+                if (CachedPowerConnections.LastPole.IsValid())
+                    AddWire(BuildPlan, CachedPowerConnections.LastPole, MachineId);
             }
             else
             {
+                // remember last machine for later connection
                 CachedPowerConnections.LastMachine = MachineId;
             }
         }
         else
         {
-            // Power pole
+            // place a power pole between machines
             FGuid PowerPoleId = FGuid::NewGuid();
-            FVector PowerPoleLocation = FVector(-MachineConfig.Width / 2, -MachineConfig.LengthFront / 2, 0);
-            BuildPlan.BuildableUnits.Add({PowerPoleId, EBuildable::PowerPole, MachineLocation + PowerPoleLocation});
+            const FVector PowerPoleRel =
+                FVector(-(MachineConfig.Width / 2.0f), -(MachineConfig.LengthFront / 2.0f), 0.0f);
+            AddBuildableUnit(BuildPlan, PowerPoleId, EBuildable::PowerPole, MachineLocation + PowerPoleRel);
 
-            // Power pole -> Machine
-            BuildPlan.WireConnections.Add({PowerPoleId, MachineId});
+            // connect pole -> machine
+            AddWire(BuildPlan, PowerPoleId, MachineId);
 
             if (bFirstUnitInRow)
             {
                 if (CachedPowerConnections.FirstPole.IsValid())
                 {
-                    // Power pole -> power pole from last row
-                    BuildPlan.WireConnections.Add({PowerPoleId, CachedPowerConnections.FirstPole});
+                    // connect pole -> first pole of previous row
+                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.FirstPole);
                 }
                 CachedPowerConnections.FirstPole = PowerPoleId;
             }
             else
             {
-                // Power pole -> Last Machine
-                BuildPlan.WireConnections.Add({PowerPoleId, CachedPowerConnections.LastMachine});
+                // connect pole -> last machine & last pole (previous on same row)
+                if (CachedPowerConnections.LastMachine.IsValid())
+                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.LastMachine);
 
-                // Power pole -> last power pole
-                BuildPlan.WireConnections.Add({PowerPoleId, CachedPowerConnections.LastPole});
+                if (CachedPowerConnections.LastPole.IsValid())
+                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.LastPole);
             }
+
             CachedPowerConnections.LastPole = PowerPoleId;
         }
 
-        int32 Height = 0;
-        for (FConnector Connector : MachineConfig.Input)
+        // Input splitters and belt wiring
+        int32 HeightOffset = 0;
+        for (const FConnector& Conn : MachineConfig.Input)
         {
             FGuid SplitterId = FGuid::NewGuid();
-            FVector SplitterLocation =
-                MachineLocation + FVector(Connector.LocationX, -MachineConfig.LengthFront + 200, 100 + Height);
-            BuildPlan.BuildableUnits.Add({SplitterId, EBuildable::Splitter, SplitterLocation});
+            const FVector SplitterLocation =
+                MachineLocation +
+                FVector((float) Conn.LocationX, -MachineConfig.LengthFront + 200.0f, 100.0f + (float) HeightOffset);
+            AddBuildableUnit(BuildPlan, SplitterId, EBuildable::Splitter, SplitterLocation);
 
-            FBeltConnector ConnPrevUnit;
+            // connect previous item -> splitter (if present)
             if (!bFirstUnitInRow)
             {
-                ConnectionQueue.Input.Dequeue(ConnPrevUnit);
-                BuildPlan.BeltConnections.Add({ConnPrevUnit.UnitId, ConnPrevUnit.SocketNumber, SplitterId, 1});
+                FBeltConnector Prev;
+                if (ConnectionQueue.Input.Dequeue(Prev))
+                {
+                    AddBelt(BuildPlan, Prev.UnitId, Prev.SocketNumber, SplitterId, 1);
+                }
             }
+
+            // enqueue this splitter for future machines
             ConnectionQueue.Input.Enqueue({SplitterId, 0});
 
-            BuildPlan.BeltConnections.Add({SplitterId, 3, MachineId, Connector.Index});
+            // connect splitter -> machine input socket
+            AddBelt(BuildPlan, SplitterId, 3, MachineId, Conn.Index);
 
-            Height += 200;
+            HeightOffset += 200;
         }
 
-        for (FConnector Connector : MachineConfig.Output)
+        // Output mergers and belt wiring
+        for (const FConnector& Conn : MachineConfig.Output)
         {
             FGuid MergerId = FGuid::NewGuid();
-            FVector MergerLocation =
-                MachineLocation + FVector(Connector.LocationX, MachineConfig.LengthBehind - 200, 100);
-            BuildPlan.BuildableUnits.Add({MergerId, EBuildable::Merger, MergerLocation});
+            const FVector MergerLocation =
+                MachineLocation + FVector((float) Conn.LocationX, (float) MachineConfig.LengthBehind - 200.0f, 100.0f);
+            AddBuildableUnit(BuildPlan, MergerId, EBuildable::Merger, MergerLocation);
 
-            FBeltConnector ConnPrevUnit;
+            // connect merger -> previously enqueued output (if present)
             if (!bFirstUnitInRow)
             {
-                ConnectionQueue.Output.Dequeue(ConnPrevUnit);
-                BuildPlan.BeltConnections.Add({MergerId, 1, ConnPrevUnit.UnitId, ConnPrevUnit.SocketNumber});
+                FBeltConnector Prev;
+                if (ConnectionQueue.Output.Dequeue(Prev))
+                {
+                    AddBelt(BuildPlan, MergerId, 1, Prev.UnitId, Prev.SocketNumber);
+                }
             }
+
+            // enqueue this merger for future row's machines
             ConnectionQueue.Output.Enqueue({MergerId, 0});
 
-            BuildPlan.BeltConnections.Add({MachineId, Connector.Index, MergerId, 2});
+            // connect machine output -> merger
+            AddBelt(BuildPlan, MachineId, Conn.Index, MergerId, 2);
         }
     }
 } // namespace
@@ -166,20 +232,25 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray<FFactor
     int32 FirstMachineWidth = 0;
     FCachedPowerConnections CachedPowerConnections;
 
-    auto CalculateRowXOffset = [&](int32 CurrentWidth) -> int32
-    { return FMath::CeilToInt((CurrentWidth - FirstMachineWidth) / 2.0f / 100) * 100; };
+    // helper to compute X offset relative to first machine width
+    const auto CalculateRowXOffset = [&](int32 CurrentWidth) -> int32
+    {
+        const float Delta = (float) (CurrentWidth - FirstMachineWidth) / 2.0f;
+        // keep alignment on 100-unit grid
+        return FMath::CeilToInt(Delta / 100.0f) * 100;
+    };
 
     for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
     {
         const FFactoryCommandToken& RowConfig = ClusterConfig[RowIndex];
         const EMachineType MachineType = RowConfig.MachineType;
-        TOptional<FString> Recipe = RowConfig.Recipe;
+        const TOptional<FString> Recipe = RowConfig.Recipe;
         const int32 Count = RowConfig.Count;
-        TOptional<float> Underclock = RowConfig.ClockPercent;
+        const TOptional<float> Underclock = RowConfig.ClockPercent;
 
         const EBuildable MachineBuildable = static_cast<EBuildable>(MachineType);
         UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
-        const TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
+        const TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass; // may be null, handled downstream
 
         int32 Variant = 0;
         if (Recipe.IsSet())
@@ -189,11 +260,17 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray<FFactor
             {
                 const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
                 if (MachineType == EMachineType::Manufacturer && InputPorts == 3)
+                {
                     Variant = 1;
+                }
             }
         }
 
-        FMachineConfig& MachineConfig = MachineConfigList[MachineType][Variant];
+        // fetch config: assume map contains the type (unchanged behavior)
+        const TArray<FMachineConfig>* ConfigVariants = MachineConfigList.Find(MachineType);
+        checkf(ConfigVariants && ConfigVariants->Num() > Variant, TEXT("Missing MachineConfig for type %d variant %d"),
+               (int32) MachineType, Variant);
+        const FMachineConfig& MachineConfig = (*ConfigVariants)[Variant];
 
         if (RowIndex == 0)
             FirstMachineWidth = MachineConfig.Width;
@@ -207,7 +284,7 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray<FFactor
         for (int32 i = 0; i < Count; ++i)
         {
             const bool bFirstUnitInRow = (i == 0);
-            const bool bEvenIndex = (i % 2 == 0);
+            const bool bEvenIndex = ((i % 2) == 0);
             const bool bLastIndex = (i == Count - 1);
 
             CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, Underclock, XCursor, YCursor, MachineConfig,
@@ -218,6 +295,7 @@ FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray<FFactor
 
         YCursor += MachineConfig.LengthBehind;
 
+        // reset cached last pointers for next row
         CachedPowerConnections.LastMachine.Invalidate();
         CachedPowerConnections.LastPole.Invalidate();
     }

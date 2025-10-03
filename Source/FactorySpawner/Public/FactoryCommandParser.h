@@ -4,7 +4,7 @@
 
 struct FFactoryCommandToken
 {
-    int32 Count;
+    int32 Count = 0;
     EMachineType MachineType;
     TOptional<FString> Recipe;
     TOptional<float> ClockPercent; // percent value (e.g. 75.5)
