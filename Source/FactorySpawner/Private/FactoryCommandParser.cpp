@@ -91,7 +91,6 @@ bool FFactoryCommandParser::ParseCommand(
 			}
 
 			Token.ClockPercent = ClockSpeed;
-			Token.bHasUnderclock = true;
 		}
 
 		OutTokens.Add(Token);

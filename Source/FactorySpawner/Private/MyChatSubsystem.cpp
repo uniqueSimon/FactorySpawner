@@ -23,9 +23,9 @@ namespace {
 	}
 
 	static TArray<FFactoryCommandToken> DefaultClusterConfig = {
-		{ 3, EMachineType::Smelter, TEXT("IngotIron")},
-		{ 3, EMachineType::Constructor,TEXT("IronPlate") },
-		{ 2, EMachineType::Constructor, TEXT("Wire") },
+		{ 3, EMachineType::Smelter, TOptional<FString>(TEXT("IngotIron"))},
+		{ 3, EMachineType::Constructor,TOptional<FString>(TEXT("IronPlate")) },
+		{ 2, EMachineType::Constructor, TOptional<FString>(TEXT("Wire")) },
 	};
 
 	void SelectRecipeWithBuildGun(UWorld* World) {

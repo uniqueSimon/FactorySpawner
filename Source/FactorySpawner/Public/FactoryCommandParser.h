@@ -4,11 +4,10 @@
 
 struct FFactoryCommandToken
 {
-	int32 Count = 0;
+	int32 Count;
 	EMachineType MachineType;
-	FString Recipe;
-	float ClockPercent = 100.0f; // percent value (e.g. 75.5)
-	bool bHasUnderclock = false;
+	TOptional<FString> Recipe;
+	TOptional<float> ClockPercent; // percent value (e.g. 75.5)
 };
 
 class FFactoryCommandParser
