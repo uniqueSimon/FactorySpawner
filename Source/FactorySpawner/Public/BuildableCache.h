@@ -12,8 +12,8 @@ class UStaticMesh;
 
 struct FWrongRecipe
 {
-	FString Name;
-	FString ProducedIn;
+    FString Name;
+    FString ProducedIn;
 };
 
 /**
@@ -22,25 +22,26 @@ struct FWrongRecipe
 UCLASS()
 class FACTORYSPAWNER_API UBuildableCache : public UObject
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-public:
-	// Buildable class loader
-	static TSubclassOf<AFGBuildable> GetBuildableClass(EBuildable Type);
+  public:
+    // Buildable class loader
+    static TSubclassOf<AFGBuildable> GetBuildableClass(EBuildable Type);
 
-	static void SetBeltClass(int32 Tier);
+    static void SetBeltClass(int32 Tier);
 
-	// Recipe loader
-	static TSubclassOf<UFGRecipe> GetRecipeClass(FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn, UWorld* World);
+    // Recipe loader
+    static TSubclassOf<UFGRecipe> GetRecipeClass(FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn,
+                                                 UWorld* World);
 
-	// Mesh loader
-	static TArray<UStaticMesh*> GetStaticMesh(EBuildable Type);
+    // Mesh loader
+    static TArray<UStaticMesh*> GetStaticMesh(EBuildable Type);
 
-private:
-	// Internal caches
-	static TMap<EBuildable, TSubclassOf<AFGBuildable>> CachedClasses;
-	static TMap<FString, TSubclassOf<UFGRecipe>> CachedRecipeClasses;
-	static TMap<EBuildable, TArray<UStaticMesh*>> CachedMeshes;
+  private:
+    // Internal caches
+    static TMap<EBuildable, TSubclassOf<AFGBuildable>> CachedClasses;
+    static TMap<FString, TSubclassOf<UFGRecipe>> CachedRecipeClasses;
+    static TMap<EBuildable, TArray<UStaticMesh*>> CachedMeshes;
 
-	static TArray<FWrongRecipe> WrongRecipes;
+    static TArray<FWrongRecipe> WrongRecipes;
 };

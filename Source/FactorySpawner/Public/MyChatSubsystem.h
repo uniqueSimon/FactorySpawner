@@ -9,75 +9,79 @@ class FFactoryCommandParser;
 struct FFactoryCommandToken;
 
 UENUM(BlueprintType)
-enum class EMachineType :uint8
+enum class EMachineType : uint8
 {
-	Smelter,
-	Constructor,
-	Assembler,
-	Foundry,
-	Manufacturer,
-	Invalid,
+    Smelter,
+    Constructor,
+    Assembler,
+    Foundry,
+    Manufacturer,
+    Invalid,
 };
 
 UENUM(BlueprintType)
-enum class EBuildable : uint8 {
-	Smelter = static_cast<uint8>(EMachineType::Smelter),
-	Constructor = static_cast<uint8>(EMachineType::Constructor),
-	Assembler = static_cast<uint8>(EMachineType::Assembler),
-	Foundry = static_cast<uint8>(EMachineType::Foundry),
-	Manufacturer = static_cast<uint8>(EMachineType::Manufacturer),
+enum class EBuildable : uint8
+{
+    Smelter = static_cast<uint8>(EMachineType::Smelter),
+    Constructor = static_cast<uint8>(EMachineType::Constructor),
+    Assembler = static_cast<uint8>(EMachineType::Assembler),
+    Foundry = static_cast<uint8>(EMachineType::Foundry),
+    Manufacturer = static_cast<uint8>(EMachineType::Manufacturer),
 
-	Splitter,
-	Merger,
-	PowerPole,
+    Splitter,
+    Merger,
+    PowerPole,
 
-	Belt,
-	Lift,
-	PowerLine,
+    Belt,
+    Lift,
+    PowerLine,
 };
 
 struct FBuildableUnit
 {
-	FGuid Id;
-	EBuildable Buildable;
-	FVector Location;
-	TOptional<FString> Recipe;
-	TOptional<float> Underclock;
+    FGuid Id;
+    EBuildable Buildable;
+    FVector Location;
+    TOptional<FString> Recipe;
+    TOptional<float> Underclock;
 };
 
-struct FWireConnection {
-	FGuid FromUnit;
-	FGuid ToUnit;
+struct FWireConnection
+{
+    FGuid FromUnit;
+    FGuid ToUnit;
 };
 
-struct FBeltConnection {
-	FGuid FromUnit;
-	int32 FromSocket;
-	FGuid ToUnit;
-	int32 ToSocket;
+struct FBeltConnection
+{
+    FGuid FromUnit;
+    int32 FromSocket;
+    FGuid ToUnit;
+    int32 ToSocket;
 };
 struct FBuildPlan
 {
-	TArray<FBuildableUnit> BuildableUnits;
-	TArray<FBeltConnection> BeltConnections;
-	TArray<FWireConnection> WireConnections;
+    TArray<FBuildableUnit> BuildableUnits;
+    TArray<FBeltConnection> BeltConnections;
+    TArray<FWireConnection> WireConnections;
 };
 
 UCLASS()
 class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 
-public:
-	AMyChatSubsystem();
+  public:
+    AMyChatSubsystem();
 
-	static FBuildPlan CurrentBuildPlan;
+    static FBuildPlan CurrentBuildPlan;
 
-	EExecutionStatus ExecuteCommand_Implementation(class UCommandSender* Sender, const TArray<FString>& Arguments, const FString& Label) override;
+    EExecutionStatus ExecuteCommand_Implementation(class UCommandSender* Sender, const TArray<FString>& Arguments,
+                                                   const FString& Label) override;
 
-	void BeginPlay() override;
+    void BeginPlay() override;
 
-private:
-	FBuildPlan CalculateClusterSetup(UWorld* World, TArray< FFactoryCommandToken>& ClusterConfig);
-	EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
+  private:
+    FBuildPlan CalculateClusterSetup(UWorld* World, TArray<FFactoryCommandToken>& ClusterConfig);
+    EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
 };

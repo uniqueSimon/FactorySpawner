@@ -1,0 +1,15 @@
+BasedOnStyle: Microsoft
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+BreakBeforeBraces: Allman
+ColumnLimit: 120
+NamespaceIndentation: All
+PointerAlignment: Left
+ReferenceAlignment: Left
+SpaceAfterCStyleCast: true
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+AllowShortFunctionsOnASingleLine: None
+SortIncludes: false
