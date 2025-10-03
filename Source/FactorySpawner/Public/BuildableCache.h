@@ -31,7 +31,7 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
     static void SetBeltClass(int32 Tier);
 
     // Recipe loader
-    static TSubclassOf<UFGRecipe> GetRecipeClass(FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn,
+    static TSubclassOf<UFGRecipe> GetRecipeClass(const FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn,
                                                  UWorld* World);
 
     // Mesh loader

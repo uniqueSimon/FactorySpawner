@@ -123,7 +123,7 @@ void UBuildableCache::SetBeltClass(int32 Tier)
 //-------------------------------------------------
 // Recipe loader
 //-------------------------------------------------
-TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(FString& Recipe,
+TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
                                                        TSubclassOf<AFGBuildableManufacturer> ProducedIn, UWorld* World)
 {
     if (TSubclassOf<UFGRecipe>* Found = CachedRecipeClasses.Find(Recipe))
