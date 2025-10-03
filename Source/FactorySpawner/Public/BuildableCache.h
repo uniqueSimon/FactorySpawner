@@ -1,12 +1,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MyChatSubsystem.h"
-#include "FGBuildable.h"
-#include "FGBuildableManufacturer.h"
+#include "MyChatSubsystem.h" //to get EBuildable
 #include "BuildableCache.generated.h"
 
+class AFGBuildable;
 class AFGBuildableConveyorBelt;
+class AFGBuildableManufacturer;
 class UFGRecipe;
 class UStaticMesh;
 
@@ -17,7 +17,7 @@ struct FWrongRecipe
 };
 
 /**
- * Helper class for lazy-loading and caching buildable classes
+ * Helper class for lazy-loading and caching buildable classes, recipes, and meshes
  */
 UCLASS()
 class FACTORYSPAWNER_API UBuildableCache : public UObject
@@ -25,18 +25,19 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
 	GENERATED_BODY()
 
 public:
-	// Get (and cache) the buildable class for a given type
+	// Buildable class loader
 	static TSubclassOf<AFGBuildable> GetBuildableClass(EBuildable Type);
 
 	static void SetBeltClass(int32 Tier);
 
-	// Get (and cache) the recipe class for a given name and where it is produced
+	// Recipe loader
 	static TSubclassOf<UFGRecipe> GetRecipeClass(FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn, UWorld* World);
 
-	// Get (and cache) the recipe class for a given name and where it is produced
+	// Mesh loader
 	static TArray<UStaticMesh*> GetStaticMesh(EBuildable Type);
+
 private:
-	// Internal cache
+	// Internal caches
 	static TMap<EBuildable, TSubclassOf<AFGBuildable>> CachedClasses;
 	static TMap<FString, TSubclassOf<UFGRecipe>> CachedRecipeClasses;
 	static TMap<EBuildable, TArray<UStaticMesh*>> CachedMeshes;
