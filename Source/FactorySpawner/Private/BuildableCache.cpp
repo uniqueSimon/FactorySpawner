@@ -98,7 +98,7 @@ TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
 
     FString Path;
     if (!MachineClassPaths.Contains(Type))
-        Path = FString::Printf(TEXT("/Game/FactoryGame/Buildable/Factory/%sMk1/Build_%sMk1.Build_%sMk1"),
+        Path = FString::Printf(TEXT("/Game/FactoryGame/Buildable/Factory/%sMk1/Build_%sMk1.Build_%sMk1_C"),
                                *GetEnumName(Type), *GetEnumName(Type), *GetEnumName(Type));
     else
         Path = MachineClassPaths[Type];

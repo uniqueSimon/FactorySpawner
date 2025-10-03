@@ -14,6 +14,7 @@
 #include "FGRecipeManager.h"
 #include "FGTestBlueprintFunctionLibrary.h"
 #include "FGPlayerController.h"
+#include "BuildPlanGenerator.h"
 
 namespace
 {

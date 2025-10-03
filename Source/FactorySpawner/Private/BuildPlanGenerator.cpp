@@ -1,8 +1,9 @@
-﻿#include "MyChatSubsystem.h"
+#include "MyChatSubsystem.h"
 #include "FactorySpawner.h"
 #include "FGRecipe.h"
 #include "BuildableCache.h"
 #include "FactoryCommandParser.h"
+#include "BuildPlanGenerator.h"
 
 namespace
 {
@@ -48,29 +49,6 @@ namespace
     {
         FConnArrayQueue Input;
         FConnArrayQueue Output;
-    };
-
-    struct FCachedPowerConnections
-    {
-        FGuid LastMachine;
-        FGuid LastPole;
-        FGuid FirstPole;
-    };
-
-    struct FConnector
-    {
-        int32 Index = 0;
-        int32 LocationX = 0;
-    };
-
-    struct FMachineConfig
-    {
-        int32 Width = 0;
-        int32 LengthFront = 0;
-        int32 LengthBehind = 0;
-        int32 PowerPoleY = 0;
-        TArray<FConnector> Input;
-        TArray<FConnector> Output;
     };
 
     // Machine configuration map (static to avoid repeated construction)
@@ -224,81 +202,75 @@ namespace
     }
 } // namespace
 
-FBuildPlan AMyChatSubsystem::CalculateClusterSetup(UWorld* World, TArray<FFactoryCommandToken>& ClusterConfig)
+FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld) : World(InWorld)
 {
-    FBuildPlan BuildPlan;
-    int32 YCursor = 0;
-    int32 XCursor = 0;
-    int32 FirstMachineWidth = 0;
-    FCachedPowerConnections CachedPowerConnections;
+}
 
-    // helper to compute X offset relative to first machine width
-    const auto CalculateRowXOffset = [&](int32 CurrentWidth) -> int32
-    {
-        const float Delta = (float) (CurrentWidth - FirstMachineWidth) / 2.0f;
-        // keep alignment on 100-unit grid
-        return FMath::CeilToInt(Delta / 100.0f) * 100;
-    };
+FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
+{
+    BuildPlan = FBuildPlan();
+    YCursor = XCursor = FirstMachineWidth = 0;
+    CachedPowerConnections = {};
 
     for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
     {
-        const FFactoryCommandToken& RowConfig = ClusterConfig[RowIndex];
-        const EMachineType MachineType = RowConfig.MachineType;
-        const TOptional<FString> Recipe = RowConfig.Recipe;
-        const int32 Count = RowConfig.Count;
-        const TOptional<float> Underclock = RowConfig.ClockPercent;
-
-        const EBuildable MachineBuildable = static_cast<EBuildable>(MachineType);
-        UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
-        const TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass; // may be null, handled downstream
-
-        int32 Variant = 0;
-        if (Recipe.IsSet())
-        {
-            if (TSubclassOf<UFGRecipe> RecipeClass =
-                    UBuildableCache::GetRecipeClass(Recipe.GetValue(), MachineClass, World))
-            {
-                const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
-                if (MachineType == EMachineType::Manufacturer && InputPorts == 3)
-                {
-                    Variant = 1;
-                }
-            }
-        }
-
-        // fetch config: assume map contains the type (unchanged behavior)
-        const TArray<FMachineConfig>* ConfigVariants = MachineConfigList.Find(MachineType);
-        checkf(ConfigVariants && ConfigVariants->Num() > Variant, TEXT("Missing MachineConfig for type %d variant %d"),
-               (int32) MachineType, Variant);
-        const FMachineConfig& MachineConfig = (*ConfigVariants)[Variant];
-
-        if (RowIndex == 0)
-            FirstMachineWidth = MachineConfig.Width;
-        else
-        {
-            YCursor += MachineConfig.LengthFront;
-            XCursor = CalculateRowXOffset(MachineConfig.Width);
-        }
-
-        FConnectionQueue ConnectionQueue;
-        for (int32 i = 0; i < Count; ++i)
-        {
-            const bool bFirstUnitInRow = (i == 0);
-            const bool bEvenIndex = ((i % 2) == 0);
-            const bool bLastIndex = (i == Count - 1);
-
-            CalculateMachineSetup(BuildPlan, MachineBuildable, Recipe, Underclock, XCursor, YCursor, MachineConfig,
-                                  ConnectionQueue, CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
-
-            XCursor += MachineConfig.Width;
-        }
-
-        YCursor += MachineConfig.LengthBehind;
-
-        // reset cached last pointers for next row
-        CachedPowerConnections.LastMachine.Invalidate();
-        CachedPowerConnections.LastPole.Invalidate();
+        ProcessRow(ClusterConfig[RowIndex], RowIndex);
     }
 
     return BuildPlan;
+}
+
+void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
+{
+    // determine variant, recipe, machine config, etc.
+    const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
+    UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
+    TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
+
+    int32 Variant = 0;
+    if (RowConfig.Recipe.IsSet())
+    {
+        if (TSubclassOf<UFGRecipe> RecipeClass =
+                UBuildableCache::GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
+        {
+            const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
+            if (RowConfig.MachineType == EMachineType::Manufacturer && InputPorts == 3)
+                Variant = 1;
+        }
+    }
+
+    const FMachineConfig& MachineConfig = MachineConfigList[RowConfig.MachineType][Variant];
+
+    if (RowIndex == 0)
+        FirstMachineWidth = MachineConfig.Width;
+    else
+    {
+        YCursor += MachineConfig.LengthFront;
+        XCursor = FMath::CeilToInt((MachineConfig.Width - FirstMachineWidth) / 2.0f / 100) * 100;
+    }
+
+    PlaceMachines(RowConfig, RowIndex, MachineConfig);
+
+    YCursor += MachineConfig.LengthBehind;
+    CachedPowerConnections.LastMachine.Invalidate();
+    CachedPowerConnections.LastPole.Invalidate();
+}
+
+void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
+                                        const FMachineConfig& MachineConfig)
+{
+    FConnectionQueue ConnectionQueue;
+
+    for (int32 i = 0; i < RowConfig.Count; ++i)
+    {
+        const bool bFirstUnitInRow = (i == 0);
+        const bool bEvenIndex = (i % 2 == 0);
+        const bool bLastIndex = (i == RowConfig.Count - 1);
+
+        CalculateMachineSetup(BuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
+                              RowConfig.ClockPercent, XCursor, YCursor, MachineConfig, ConnectionQueue,
+                              CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
+
+        XCursor += MachineConfig.Width;
+    }
 }

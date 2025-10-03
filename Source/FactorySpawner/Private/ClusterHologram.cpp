@@ -23,6 +23,7 @@
 #include "FGBuildingDescriptor.h"
 #include "FGRecipeManager.h"
 #include "FGBuildableConveyorLift.h"
+#include "BuildPlanGenerator.h"
 
 void AClusterHologram::BeginPlay()
 {

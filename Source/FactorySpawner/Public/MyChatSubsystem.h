@@ -82,6 +82,5 @@ class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
     void BeginPlay() override;
 
   private:
-    FBuildPlan CalculateClusterSetup(UWorld* World, TArray<FFactoryCommandToken>& ClusterConfig);
     EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
 };

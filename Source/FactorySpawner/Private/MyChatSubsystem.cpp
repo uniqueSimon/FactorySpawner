@@ -73,7 +73,8 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
     }
 
     UWorld* World = GetWorld();
-    CurrentBuildPlan = CalculateClusterSetup(World, CommandTokens);
+    FBuildPlanGenerator BuildPlanGenerator(World);
+    CurrentBuildPlan = BuildPlanGenerator.Generate(CommandTokens);
 
     SelectRecipeWithBuildGun(World);
 
@@ -100,7 +101,8 @@ void AMyChatSubsystem::BeginPlay()
     Super::BeginPlay();
 
     UWorld* World = GetWorld();
-    CurrentBuildPlan = CalculateClusterSetup(World, DefaultClusterConfig);
+    FBuildPlanGenerator BuildPlanGenerator(World);
+    CurrentBuildPlan = BuildPlanGenerator.Generate(DefaultClusterConfig);
 
     FFactorySpawnerModule::ChatLog(World,
                                    "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
