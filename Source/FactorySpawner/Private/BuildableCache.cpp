@@ -2,6 +2,7 @@
 #include "FGRecipeManager.h"
 #include "FactorySpawner.h"
 #include "FGBuildableConveyorBelt.h"
+#include "UObject/SoftObjectPtr.h"
 
 namespace {
 	FString GetEnumName(EBuildable Value)
@@ -15,6 +16,7 @@ namespace {
 TMap<EBuildable, TSubclassOf<AFGBuildable>> UBuildableCache::CachedClasses;
 TMap<FString, TSubclassOf<UFGRecipe>> UBuildableCache::CachedRecipeClasses;
 TMap<EBuildable, TArray<UStaticMesh*>> UBuildableCache::CachedMeshes;
+
 TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
 {
 	if (TSubclassOf<AFGBuildable>* Found = CachedClasses.Find(Type))
@@ -63,8 +65,17 @@ TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
 		return nullptr;
 	}
 
-	TSubclassOf<AFGBuildable> LoadedClass = StaticLoadClass(AFGBuildable::StaticClass(), nullptr, *Path);
-	CachedClasses.Add(Type, LoadedClass);
+	TSoftClassPtr<AFGBuildable> SoftClassPtr(Path);
+	TSubclassOf<AFGBuildable> LoadedClass = SoftClassPtr.LoadSynchronous();
+
+	if (LoadedClass)
+	{
+		CachedClasses.Add(Type, LoadedClass);
+	}
+	else
+	{
+		UE_LOG(LogFactorySpawner, Error, TEXT("Failed to load buildable %s at %s"), *GetEnumName(Type), *Path);
+	}
 
 	return LoadedClass;
 }
@@ -72,8 +83,17 @@ TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
 void UBuildableCache::SetBeltClass(int32 Tier)
 {
 	FString Path = FString::Printf(TEXT("/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk%d/Build_ConveyorBeltMk%d.Build_ConveyorBeltMk%d_C"), Tier, Tier, Tier);
-	TSubclassOf<AFGBuildableConveyorBelt> LoadedBelt = StaticLoadClass(AFGBuildableConveyorBelt::StaticClass(), nullptr, *Path);
-	CachedClasses.Add(EBuildable::Belt, LoadedBelt);
+	TSoftClassPtr<AFGBuildableConveyorBelt> SoftClassPtr(Path);
+	TSubclassOf<AFGBuildableConveyorBelt> LoadedClass = SoftClassPtr.LoadSynchronous();
+
+	if (LoadedClass)
+	{
+		CachedClasses.Add(EBuildable::Belt, LoadedClass);
+	}
+	else
+	{
+		UE_LOG(LogFactorySpawner, Error, TEXT("Failed to load belt buildable at %s"), *Path);
+	}
 }
 
 TArray<FWrongRecipe> UBuildableCache::WrongRecipes = {};
@@ -129,18 +149,14 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(FString& Recipe, TSubclas
 	return *FoundRecipe;
 };
 
+struct FFilePos {
+	FString Folder;
+	FString File;
+};
 
-TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
+// Helper function: return mesh paths for each buildable type
+static TArray<FFilePos> GetMeshPathsForType(EBuildable Type)
 {
-	if (TArray<UStaticMesh*>* Found = CachedMeshes.Find(Type))
-	{
-		return *Found;
-	}
-
-	struct FFilePos {
-		FString Folder;
-		FString File;
-	};
 	TArray<FFilePos> FilePositions;
 	switch (Type)
 	{
@@ -179,11 +195,31 @@ TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
 		UE_LOG(LogFactorySpawner, Warning, TEXT("No mesh path defined for buildable type %d"), static_cast<int32>(Type));
 		return {};
 	};
+	return FilePositions;
+}
+
+TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
+{
+	if (TArray<UStaticMesh*>* Found = CachedMeshes.Find(Type))
+	{
+		return *Found;
+	}
+
+	TArray<FFilePos>FilePositions = GetMeshPathsForType(Type);
 
 	TArray<UStaticMesh*> StaticMeshes;
 	for (FFilePos FilePos : FilePositions) {
 		FString Path = FString::Printf(TEXT("/Game/FactoryGame/Buildable/Factory/%s/Mesh/%s.%s"), *FilePos.Folder, *FilePos.File, *FilePos.File);
-		StaticMeshes.Add(Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, *Path)));
+
+		TSoftObjectPtr<UStaticMesh> SoftMeshPtr(Path);
+		UStaticMesh* Mesh = SoftMeshPtr.LoadSynchronous();
+
+		if (Mesh) {
+			StaticMeshes.Add(Mesh);
+		}
+		else {
+			UE_LOG(LogFactorySpawner, Warning, TEXT("Failed to load mesh at %s"), *Path);
+		}
 	}
 	CachedMeshes.Add(Type, StaticMeshes);
 	return StaticMeshes;

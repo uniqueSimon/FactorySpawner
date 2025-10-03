@@ -30,7 +30,8 @@ namespace {
 
 	void SelectRecipeWithBuildGun(UWorld* World) {
 		FString RecipePath = TEXT("/FactorySpawner/Recipe_ConstructorGroup.Recipe_ConstructorGroup_C");
-		TSubclassOf<UFGRecipe> LoadedRecipe = StaticLoadClass(UFGRecipe::StaticClass(), nullptr, *RecipePath);
+		TSoftClassPtr<AFGBuildable> SoftClassPtr(RecipePath);
+		TSubclassOf<UFGRecipe> LoadedRecipe = SoftClassPtr.LoadSynchronous();
 		APlayerController* PlayerController = World->GetFirstPlayerController();
 		AFGCharacterPlayer* PlayerCasted = Cast<AFGCharacterPlayer>(PlayerController->GetCharacter());
 		AFGBuildGun* BuildGun = PlayerCasted->GetBuildGun();
