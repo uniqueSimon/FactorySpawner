@@ -1,9 +1,9 @@
+#include "BuildPlanGenerator.h"
 #include "MyChatSubsystem.h"
 #include "FactorySpawner.h"
 #include "FGRecipe.h"
 #include "BuildableCache.h"
 #include "FactoryCommandParser.h"
-#include "BuildPlanGenerator.h"
 
 namespace
 {
