@@ -4,6 +4,7 @@
 #include "MyChatSubsystem.h" //to get EBuildable
 #include "BuildableCache.generated.h"
 
+class AMyChatSubsystem;
 class AFGBuildable;
 class AFGBuildableConveyorBelt;
 class AFGBuildableManufacturer;

@@ -3,6 +3,7 @@
 #include "FGBuildableConveyorBelt.h"
 #include "SoftObjectPtr.h"
 #include "FGBuildableManufacturer.h"
+#include "FactorySpawner.h"
 #include "MyChatSubsystem.h"
 
 namespace

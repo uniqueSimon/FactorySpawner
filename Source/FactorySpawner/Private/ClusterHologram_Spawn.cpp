@@ -15,6 +15,7 @@
 #include "FGTestBlueprintFunctionLibrary.h"
 #include "FGPlayerController.h"
 #include "BuildPlanGenerator.h"
+#include "MyChatSubsystem.h"
 
 namespace
 {
@@ -51,56 +52,9 @@ namespace
         }
     }
 
-    void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
-                    const TMap<FGuid, FBuiltThing>& SpawnedActors, UBuildableCache* BuildableCache)
+    void ConnectWithBelts(AFGBuildableConveyorBelt* SpawnedBelt, UFGFactoryConnectionComponent* FromConn,
+                          UFGFactoryConnectionComponent* ToConn)
     {
-        UClass* BaseClass = BuildableCache->GetBuildableClass(EBuildable::PowerLine);
-        TSubclassOf<AFGBuildableWire> WireClass = BaseClass;
-
-        for (const FWireConnection& Wire : WireConnections)
-        {
-            FBuiltThing From = SpawnedActors.FindRef(Wire.FromUnit);
-            FBuiltThing To = SpawnedActors.FindRef(Wire.ToUnit);
-
-            bool bIsMachine1 = static_cast<uint8>(From.Buildable) <= static_cast<uint8>(EMachineType::Manufacturer);
-
-            UFGPowerConnectionComponent* PowerConnection1;
-
-            if (bIsMachine1)
-            {
-                PowerConnection1 = GetMachinePowerConnection(From.Spawned);
-            }
-            else
-            {
-                AFGBuildablePowerPole* PowerPole = Cast<AFGBuildablePowerPole>(From.Spawned);
-                PowerConnection1 = PowerPole->GetPowerConnection(0);
-            }
-
-            bool bIsMachine2 = static_cast<uint8>(To.Buildable) <= static_cast<uint8>(EMachineType::Manufacturer);
-
-            UFGPowerConnectionComponent* PowerConnection2;
-
-            if (bIsMachine2)
-            {
-                PowerConnection2 = GetMachinePowerConnection(To.Spawned);
-            }
-            else
-            {
-                AFGBuildablePowerPole* PowerPole = Cast<AFGBuildablePowerPole>(To.Spawned);
-                PowerConnection2 = PowerPole->GetPowerConnection(0);
-            }
-
-            ConnectWithWire(World, WireClass, PowerConnection1, PowerConnection2);
-        }
-    }
-
-    void ConnectWithBelts(UWorld* World, UFGFactoryConnectionComponent* FromConn, UFGFactoryConnectionComponent* ToConn,
-                          UBuildableCache* BuildableCache)
-    {
-        UClass* BaseClassBelt = BuildableCache->GetBuildableClass(EBuildable::Belt);
-        TSubclassOf<AFGBuildableConveyorBelt> BeltClass = BaseClassBelt;
-        AFGBuildableConveyorBelt* SpawnedBelt = World->SpawnActor<AFGBuildableConveyorBelt>(BeltClass);
-
         FVector FromLoc = FromConn->GetComponentLocation();
         FVector FromDir = FromConn->GetConnectorNormal();
         FVector ToLoc = ToConn->GetComponentLocation();
@@ -120,41 +74,88 @@ namespace
 
         AFGBuildableConveyorBelt::Respline(SpawnedBelt, SplinePoints);
     }
+} // namespace
 
-    void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
-                    TMap<FGuid, FBuiltThing>& SpawnedActors, UBuildableCache* BuildableCache)
+void AClusterHologram::SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
+                                  const TMap<FGuid, FBuiltThing>& SpawnedActors)
+{
+    UClass* BaseClass = CachePointer->GetBuildableClass(EBuildable::PowerLine);
+    TSubclassOf<AFGBuildableWire> WireClass = BaseClass;
+
+    for (const FWireConnection& Wire : WireConnections)
     {
-        for (const FBeltConnection& Belt : BeltConnections)
+        FBuiltThing From = SpawnedActors.FindRef(Wire.FromUnit);
+        FBuiltThing To = SpawnedActors.FindRef(Wire.ToUnit);
+
+        bool bIsMachine1 = static_cast<uint8>(From.Buildable) <= static_cast<uint8>(EMachineType::Manufacturer);
+
+        UFGPowerConnectionComponent* PowerConnection1;
+
+        if (bIsMachine1)
         {
-            AFGBuildable* From = SpawnedActors.FindRef(Belt.FromUnit).Spawned;
-            AFGBuildable* To = SpawnedActors.FindRef(Belt.ToUnit).Spawned;
+            PowerConnection1 = GetMachinePowerConnection(From.Spawned);
+        }
+        else
+        {
+            AFGBuildablePowerPole* PowerPole = Cast<AFGBuildablePowerPole>(From.Spawned);
+            PowerConnection1 = PowerPole->GetPowerConnection(0);
+        }
 
-            if (From && To)
+        bool bIsMachine2 = static_cast<uint8>(To.Buildable) <= static_cast<uint8>(EMachineType::Manufacturer);
+
+        UFGPowerConnectionComponent* PowerConnection2;
+
+        if (bIsMachine2)
+        {
+            PowerConnection2 = GetMachinePowerConnection(To.Spawned);
+        }
+        else
+        {
+            AFGBuildablePowerPole* PowerPole = Cast<AFGBuildablePowerPole>(To.Spawned);
+            PowerConnection2 = PowerPole->GetPowerConnection(0);
+        }
+
+        ConnectWithWire(World, WireClass, PowerConnection1, PowerConnection2);
+    }
+}
+
+void AClusterHologram::SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
+                                  TMap<FGuid, FBuiltThing>& SpawnedActors)
+{
+    for (const FBeltConnection& Belt : BeltConnections)
+    {
+        AFGBuildable* From = SpawnedActors.FindRef(Belt.FromUnit).Spawned;
+        AFGBuildable* To = SpawnedActors.FindRef(Belt.ToUnit).Spawned;
+
+        if (From && To)
+        {
+            UFGFactoryConnectionComponent* FromConn = GetBeltConnections(From)[Belt.FromSocket];
+            UFGFactoryConnectionComponent* ToConn = GetBeltConnections(To)[Belt.ToSocket];
+
+            if (FromConn && ToConn)
             {
-                UFGFactoryConnectionComponent* FromConn = GetBeltConnections(From)[Belt.FromSocket];
-                UFGFactoryConnectionComponent* ToConn = GetBeltConnections(To)[Belt.ToSocket];
+                UClass* BaseClassBelt = CachePointer->GetBuildableClass(EBuildable::Belt);
+                TSubclassOf<AFGBuildableConveyorBelt> BeltClass = BaseClassBelt;
+                AFGBuildableConveyorBelt* SpawnedBelt = World->SpawnActor<AFGBuildableConveyorBelt>(BeltClass);
 
-                if (FromConn && ToConn)
+                ConnectWithBelts(SpawnedBelt, FromConn, ToConn);
+            }
+            else
+            {
+                for (UFGFactoryConnectionComponent* Conn : GetBeltConnections(From))
                 {
-                    ConnectWithBelts(World, FromConn, ToConn, BuildableCache);
-                }
-                else
-                {
-                    for (UFGFactoryConnectionComponent* Conn : GetBeltConnections(From))
-                    {
-                        EFactoryConnectionDirection Direction = Conn->GetDirection();
-                        FString SocketName = Conn->GetName();
-                        UE_LOG(LogFactorySpawner, Warning, TEXT("Belt connection failed! Direction: %d, name: %s"),
-                               Direction, *SocketName);
-                    }
+                    EFactoryConnectionDirection Direction = Conn->GetDirection();
+                    FString SocketName = Conn->GetName();
+                    UE_LOG(LogFactorySpawner, Warning, TEXT("Belt connection failed! Direction: %d, name: %s"),
+                           Direction, *SocketName);
                 }
             }
         }
     }
-} // namespace
+}
 
 TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
-                                                           FTransform& ActorTransform, UBuildableCache* BuildableCache)
+                                                           FTransform& ActorTransform)
 {
     // Map to track spawned actors for each unit
     TMap<FGuid, FBuiltThing> SpawnedActors;
@@ -177,7 +178,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
         case EBuildable::Foundry:
         case EBuildable::Manufacturer:
         {
-            UClass* BaseClass = BuildableCache->GetBuildableClass(Unit.Buildable);
+            UClass* BaseClass = CachePointer->GetBuildableClass(Unit.Buildable);
             TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
             if (MachineClass)
             {
@@ -185,8 +186,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
                 if (Unit.Recipe.IsSet())
                 {
                     FString RecipeName = Unit.Recipe.GetValue();
-                    TSubclassOf<UFGRecipe> RecipeClass =
-                        BuildableCache->GetRecipeClass(RecipeName, MachineClass, World);
+                    TSubclassOf<UFGRecipe> RecipeClass = CachePointer->GetRecipeClass(RecipeName, MachineClass, World);
                     if (RecipeClass)
                     {
                         AFGBuildableManufacturer* Manufacturer = Cast<AFGBuildableManufacturer>(Spawned);
@@ -208,7 +208,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
         case EBuildable::Merger:
         case EBuildable::PowerPole:
         {
-            TSubclassOf<AFGBuildable> BuildableClass = BuildableCache->GetBuildableClass(Unit.Buildable);
+            TSubclassOf<AFGBuildable> BuildableClass = CachePointer->GetBuildableClass(Unit.Buildable);
             Spawned = World->SpawnActor<AFGBuildable>(BuildableClass, Location);
 
             break;
@@ -227,10 +227,14 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
 
 void AClusterHologram::SpawnBuildPlan()
 {
+    if (!GeneratorPointer || !CachePointer)
+        return;
+
     UWorld* World = GetWorld();
-    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(World);
-    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
-    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
+    if (!World)
+        return;
+
+    const FBuildPlan& BuildPlan = GeneratorPointer->GetCurrentBuildPlan();
 
     if (BuildPlan.BuildableUnits.Num() == 0)
     {
@@ -241,11 +245,10 @@ void AClusterHologram::SpawnBuildPlan()
     {
         FTransform ActorTransform = GetActorTransform();
 
-        TMap<FGuid, FBuiltThing> SpawnedActors =
-            SpawnBuildables(BuildPlan.BuildableUnits, World, ActorTransform, BuildableCache);
+        TMap<FGuid, FBuiltThing> SpawnedActors = SpawnBuildables(BuildPlan.BuildableUnits, World, ActorTransform);
 
-        SpawnWires(World, BuildPlan.WireConnections, SpawnedActors, BuildableCache);
+        SpawnWires(World, BuildPlan.WireConnections, SpawnedActors);
 
-        SpawnBelts(World, BuildPlan.BeltConnections, SpawnedActors, BuildableCache);
+        SpawnBelts(World, BuildPlan.BeltConnections, SpawnedActors);
     }
 }

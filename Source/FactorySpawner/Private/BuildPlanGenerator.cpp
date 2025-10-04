@@ -202,27 +202,32 @@ namespace
     }
 } // namespace
 
-FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld) : World(InWorld)
+void UBuildPlanGenerator::Initialize(UWorld* InWorld, UBuildableCache* InCache)
 {
+    World = InWorld;
+    BuildableCache = InCache;
 }
 
-FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig,
-                                         UBuildableCache* BuildableCache)
+void UBuildPlanGenerator::ResetCurrentBuildPlan()
 {
-    BuildPlan = FBuildPlan();
+    CurrentBuildPlan.BuildableUnits.Empty();
+    CurrentBuildPlan.BeltConnections.Empty();
+    CurrentBuildPlan.WireConnections.Empty();
+}
+
+void UBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
+{
+    CurrentBuildPlan = FBuildPlan();
     YCursor = XCursor = FirstMachineWidth = 0;
     CachedPowerConnections = {};
 
     for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
     {
-        ProcessRow(ClusterConfig[RowIndex], RowIndex, BuildableCache);
+        ProcessRow(ClusterConfig[RowIndex], RowIndex);
     }
-
-    return BuildPlan;
 }
 
-void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex,
-                                     UBuildableCache* BuildableCache)
+void UBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
 {
     // determine variant, recipe, machine config, etc.
     const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
@@ -258,7 +263,7 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
     CachedPowerConnections.LastPole.Invalidate();
 }
 
-void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
+void UBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
                                         const FMachineConfig& MachineConfig)
 {
     FConnectionQueue ConnectionQueue;
@@ -269,7 +274,7 @@ void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, i
         const bool bEvenIndex = (i % 2 == 0);
         const bool bLastIndex = (i == RowConfig.Count - 1);
 
-        CalculateMachineSetup(BuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
+        CalculateMachineSetup(CurrentBuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
                               RowConfig.ClockPercent, XCursor, YCursor, MachineConfig, ConnectionQueue,
                               CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
 

@@ -15,20 +15,37 @@ void AClusterHologram::BeginPlay()
 {
     Super::BeginPlay();
 
-    // Cache subsystem and build plan once
-    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(GetWorld());
-    if (!Subsystem || !Subsystem->BuildableCache)
+    UWorld* World = GetWorld();
+    if (!World)
+        return;
+
+    ChatSubsystemPointer = AMyChatSubsystem::Get(World);
+    if (!ChatSubsystemPointer)
     {
-        UE_LOG(LogTemp, Warning, TEXT("ClusterHologram: No chat subsystem or buildable cache found!"));
+        UE_LOG(LogTemp, Warning, TEXT("No ChatSubsystem found!"));
         return;
     }
 
-    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
-    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
+    CachePointer = ChatSubsystemPointer->BuildableCache;
+    GeneratorPointer = ChatSubsystemPointer->BuildPlanGenerator;
+
+    if (!CachePointer || !GeneratorPointer)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("BuildPlanGenerator or BuildableCache not initialized."));
+        return;
+    }
+
+    SpawnPreviewHologram();
+}
+
+void AClusterHologram::SpawnPreviewHologram()
+{
+    // Get the current plan directly from the generator
+    const FBuildPlan& BuildPlan = GeneratorPointer->GetCurrentBuildPlan();
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
-        const TArray<UStaticMesh*>& StaticMeshes = BuildableCache->GetStaticMesh(Unit.Buildable);
+        const TArray<UStaticMesh*>& StaticMeshes = CachePointer->GetStaticMesh(Unit.Buildable);
         for (UStaticMesh* StaticMesh : StaticMeshes)
         {
             if (!StaticMesh)
@@ -58,19 +75,15 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 {
     TArray<FItemAmount> TotalCost;
 
+    if (!GeneratorPointer || !CachePointer)
+        return TotalCost;
+
     UWorld* World = GetWorld();
     if (!World)
         return TotalCost;
 
-    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(World);
-    if (!Subsystem || !Subsystem->BuildableCache)
-    {
-        UE_LOG(LogTemp, Warning, TEXT("ClusterHologram: No chat subsystem or buildable cache found!"));
-        return TotalCost;
-    }
+    const FBuildPlan& BuildPlan = GeneratorPointer->GetCurrentBuildPlan();
 
-    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
-    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
     if (!RecipeManager)
     {
@@ -80,7 +93,7 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
-        TSubclassOf<AFGBuildable> BuildableClass = BuildableCache->GetBuildableClass(Unit.Buildable);
+        TSubclassOf<AFGBuildable> BuildableClass = CachePointer->GetBuildableClass(Unit.Buildable);
         if (!BuildableClass)
             continue;
 

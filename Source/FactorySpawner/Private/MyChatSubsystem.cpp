@@ -57,18 +57,23 @@ void AMyChatSubsystem::BeginPlay()
 
     UWorld* World = GetWorld();
 
-    // Create a fresh cache for this world
-    BuildableCache = NewObject<UBuildableCache>(this, UBuildableCache::StaticClass());
-    if (BuildableCache)
+    // Create BuildableCache if needed
+    if (!BuildableCache)
     {
-        UE_LOG(LogTemp, Log, TEXT("[ChatSubsystem] BuildableCache created for world: %s"), *World->GetName());
+        BuildableCache = NewObject<UBuildableCache>(this);
+    }
+
+    // Create BuildPlanGenerator if not existing
+    if (!BuildPlanGenerator)
+    {
+        BuildPlanGenerator = NewObject<UBuildPlanGenerator>(this);
+        BuildPlanGenerator->Initialize(World, BuildableCache);
     }
 
     // Reset state for safety
     ResetSubsystemData();
 
-    FBuildPlanGenerator BuildPlanGenerator(World);
-    CurrentBuildPlan = BuildPlanGenerator.Generate(DefaultClusterConfig, BuildableCache);
+    BuildPlanGenerator->Generate(DefaultClusterConfig);
 
     FFactorySpawnerModule::ChatLog(World,
                                    "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
@@ -87,10 +92,11 @@ void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AMyChatSubsystem::ResetSubsystemData()
 {
-    // Clear current build plan
-    CurrentBuildPlan = FBuildPlan();
+    if (BuildPlanGenerator)
+    {
+        BuildPlanGenerator->ResetCurrentBuildPlan();
+    }
 
-    // Optionally clear any cached data inside BuildableCache
     if (BuildableCache)
     {
         BuildableCache->ClearCache();
@@ -127,8 +133,13 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
     }
 
     UWorld* World = GetWorld();
-    FBuildPlanGenerator BuildPlanGenerator(World);
-    CurrentBuildPlan = BuildPlanGenerator.Generate(CommandTokens, BuildableCache);
+    if (!World || !BuildPlanGenerator)
+    {
+        UE_LOG(LogTemp, Error, TEXT("BuildPlanGenerator not ready in ExecuteCommand"));
+        return EExecutionStatus::UNCOMPLETED;
+    }
+
+    BuildPlanGenerator->Generate(CommandTokens);
 
     SelectRecipeWithBuildGun(World);
 

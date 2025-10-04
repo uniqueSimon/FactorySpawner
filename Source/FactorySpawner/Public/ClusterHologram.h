@@ -2,9 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "FGBuildableHologram.h"
-#include "MyChatSubsystem.h"
-#include "BuildableCache.h"
+#include "MyChatSubsystem.h" // because of EBuildable
 #include "ClusterHologram.generated.h"
+
+class UBuildPlanGenerator;
+class UBuildableCache;
 
 struct FBuiltThing
 {
@@ -19,24 +21,31 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
     GENERATED_BODY()
 
   public:
-    UPROPERTY()
-    AMyChatSubsystem* ChatSubsystem;
-
-    virtual AActor* Construct(TArray<AActor*>& out_children, FNetConstructionID netConstructionID) override;
-
-    UPROPERTY()
-    TArray<AFGHologram*> SubHolograms;
-
+    void BeginPlay() override;
+    AActor* Construct(TArray<AActor*>& out_children, FNetConstructionID netConstructionID) override;
     TArray<FItemAmount> GetBaseCost() const override;
 
-    void SpawnBuildPlan();
+  private:
+    UPROPERTY()
+    AMyChatSubsystem* ChatSubsystemPointer = nullptr;
 
-    TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
-                                             FTransform& ActorTransform, UBuildableCache* BuildableCache);
+    UPROPERTY()
+    UBuildPlanGenerator* GeneratorPointer = nullptr;
 
-  protected:
-    virtual void BeginPlay() override;
+    UPROPERTY()
+    UBuildableCache* CachePointer = nullptr;
 
     UPROPERTY()
     TArray<UStaticMeshComponent*> PreviewMeshes;
+
+    void SpawnPreviewHologram();
+
+    void SpawnBuildPlan();
+    void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
+                                      const TMap<FGuid, FBuiltThing>& SpawnedActors);
+    void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
+                                      TMap<FGuid, FBuiltThing>& SpawnedActors);
+    TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
+                                             FTransform& ActorTransform);
+
 };

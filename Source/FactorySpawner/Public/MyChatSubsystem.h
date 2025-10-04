@@ -2,11 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "ChatCommandInstance.h"
-#include "FactorySpawner.h"
 #include "MyChatSubsystem.generated.h"
 
 class FFactoryCommandParser;
-struct FFactoryCommandToken;
+class UBuildPlanGenerator;
 class UBuildableCache;
 
 UENUM(BlueprintType)
@@ -38,33 +37,12 @@ enum class EBuildable : uint8
     PowerLine,
 };
 
-struct FBuildableUnit
+struct FFactoryCommandToken
 {
-    FGuid Id;
-    EBuildable Buildable;
-    FVector Location;
+    int32 Count = 0;
+    EMachineType MachineType;
     TOptional<FString> Recipe;
-    TOptional<float> Underclock;
-};
-
-struct FWireConnection
-{
-    FGuid FromUnit;
-    FGuid ToUnit;
-};
-
-struct FBeltConnection
-{
-    FGuid FromUnit;
-    int32 FromSocket;
-    FGuid ToUnit;
-    int32 ToSocket;
-};
-struct FBuildPlan
-{
-    TArray<FBuildableUnit> BuildableUnits;
-    TArray<FBeltConnection> BeltConnections;
-    TArray<FWireConnection> WireConnections;
+    TOptional<float> ClockPercent; // percent value (e.g. 75.5)
 };
 
 UCLASS()
@@ -90,12 +68,12 @@ class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
     /** Clears current data (useful when changing savegames) */
     void ResetSubsystemData();
 
-    /** The current generated build plan for this world */
-    FBuildPlan CurrentBuildPlan;
-
     /** Cache for buildables and recipes (world-specific) */
     UPROPERTY()
     UBuildableCache* BuildableCache;
+
+    UPROPERTY()
+    UBuildPlanGenerator* BuildPlanGenerator;
 
   private:
     EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
