@@ -11,23 +11,10 @@
 
 namespace
 {
-    EMachineType StringToMachineType(const FString Value)
-    {
-        FName Name(*Value);
-        UEnum* EnumPtr = StaticEnum<EMachineType>();
-
-        int64 EnumValue = EnumPtr->GetValueByName(Name);
-        if (EnumValue == INDEX_NONE)
-        {
-            return EMachineType::Invalid;
-        }
-        return static_cast<EMachineType>(EnumValue);
-    }
-
     static TArray<FFactoryCommandToken> DefaultClusterConfig = {
-        {3, EMachineType::Smelter, TOptional<FString>(TEXT("IngotIron"))},
-        {3, EMachineType::Constructor, TOptional<FString>(TEXT("IronPlate"))},
-        {2, EMachineType::Constructor, TOptional<FString>(TEXT("Wire"))},
+        {3, EBuildable::Smelter, TOptional<FString>(TEXT("IngotIron"))},
+        {3, EBuildable::Constructor, TOptional<FString>(TEXT("IronPlate"))},
+        {2, EBuildable::Constructor, TOptional<FString>(TEXT("Wire"))},
     };
 
     void SelectRecipeWithBuildGun(UWorld* World)

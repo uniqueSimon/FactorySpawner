@@ -1,18 +1,23 @@
 #include "FactoryCommandParser.h"
 #include "MyChatSubsystem.h"
 
-static bool ParseMachineType(const FString& Value, EMachineType& OutMachineType)
+static inline EBuildable ParseBuildableFromString(const FString& Input)
 {
-    FName Name(*Value);
-    UEnum* EnumPtr = StaticEnum<EMachineType>();
-    int64 EnumValue = EnumPtr->GetValueByName(Name);
+    FString Normalized = Input.ToLower();
 
-    if (EnumValue == INDEX_NONE)
-    {
-        return false;
-    }
-    OutMachineType = static_cast<EMachineType>(EnumValue);
-    return true;
+    if (Normalized == "smelter")
+        return EBuildable::Smelter;
+    if (Normalized == "constructor")
+        return EBuildable::Constructor;
+    if (Normalized == "assembler")
+        return EBuildable::Assembler;
+    if (Normalized == "foundry")
+        return EBuildable::Foundry;
+    if (Normalized == "manufacturer")
+        return EBuildable::Manufacturer;
+
+    // Optionally handle other buildables or return invalid
+    return EBuildable::Invalid;
 }
 
 bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCommandToken>& OutTokens,
@@ -55,8 +60,8 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
 
         // Part 2: machine type
 
-        EMachineType EnumVal = EMachineType::Invalid;
-        if (!ParseMachineType(Parts[1], EnumVal))
+        EBuildable EnumVal = ParseBuildableFromString(Parts[1]);
+        if (EnumVal == EBuildable::Invalid)
         {
             OutError = FString::Printf(TEXT("Group %d: unknown machine type '%s'. Choose: Smelter, Constructor, "
                                             "Assembler, Foundry or Manufacturer!"),

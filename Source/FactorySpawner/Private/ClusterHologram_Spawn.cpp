@@ -107,7 +107,7 @@ void AClusterHologram::SpawnWires(UWorld* World, const TArray<FWireConnection>& 
 
         auto ResolvePowerConn = [](const FBuiltThing& Thing) -> UFGPowerConnectionComponent*
         {
-            if (static_cast<uint8>(Thing.Buildable) <= static_cast<uint8>(EMachineType::Manufacturer))
+            if (Thing.Buildable <= EBuildable::Manufacturer)
                 return GetPowerConnection(Thing.Spawned);
 
             if (AFGBuildablePowerPole* Pole = Cast<AFGBuildablePowerPole>(Thing.Spawned))

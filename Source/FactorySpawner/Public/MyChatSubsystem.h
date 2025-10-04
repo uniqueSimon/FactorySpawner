@@ -9,38 +9,32 @@ class UBuildPlanGenerator;
 class UBuildableCache;
 
 UENUM(BlueprintType)
-enum class EMachineType : uint8
-{
-    Smelter,
-    Constructor,
-    Assembler,
-    Foundry,
-    Manufacturer,
-    Invalid,
-};
-
-UENUM(BlueprintType)
 enum class EBuildable : uint8
 {
-    Smelter = static_cast<uint8>(EMachineType::Smelter),
-    Constructor = static_cast<uint8>(EMachineType::Constructor),
-    Assembler = static_cast<uint8>(EMachineType::Assembler),
-    Foundry = static_cast<uint8>(EMachineType::Foundry),
-    Manufacturer = static_cast<uint8>(EMachineType::Manufacturer),
+    // Machines
+    Smelter UMETA(DisplayName = "Smelter"),
+    Constructor UMETA(DisplayName = "Constructor"),
+    Assembler UMETA(DisplayName = "Assembler"),
+    Foundry UMETA(DisplayName = "Foundry"),
+    Manufacturer UMETA(DisplayName = "Manufacturer"),
 
-    Splitter,
-    Merger,
-    PowerPole,
+    // Utility buildings
+    Splitter UMETA(DisplayName = "Splitter"),
+    Merger UMETA(DisplayName = "Merger"),
+    PowerPole UMETA(DisplayName = "Power Pole"),
 
-    Belt,
-    Lift,
-    PowerLine,
+    // Transport
+    Belt UMETA(DisplayName = "Conveyor Belt"),
+    Lift UMETA(DisplayName = "Lift"),
+    PowerLine UMETA(DisplayName = "Power Line"),
+
+    Invalid UMETA(Hidden),
 };
 
 struct FFactoryCommandToken
 {
     int32 Count = 0;
-    EMachineType MachineType;
+    EBuildable MachineType;
     TOptional<FString> Recipe;
     TOptional<float> ClockPercent; // percent value (e.g. 75.5)
 };

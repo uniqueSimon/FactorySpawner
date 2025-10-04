@@ -52,12 +52,12 @@ namespace
     };
 
     // Machine configuration map (static to avoid repeated construction)
-    static const TMap<EMachineType, TArray<FMachineConfig>> MachineConfigList = {
-        {EMachineType::Constructor, {FMachineConfig{800, 500 + 400, 500 + 400, -500, {{1, 0}}, {{0, 0}}}}},
-        {EMachineType::Smelter, {FMachineConfig{500, 500 + 400, 400 + 400, -500, {{0, 0}}, {{1, 0}}}}},
-        {EMachineType::Foundry, {FMachineConfig{1000, 700 + 400, 400 + 400, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
-        {EMachineType::Assembler, {FMachineConfig{900, 1000 + 400, 700 + 400, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
-        {EMachineType::Manufacturer,
+    static const TMap<EBuildable, TArray<FMachineConfig>> MachineConfigList = {
+        {EBuildable::Constructor, {FMachineConfig{800, 500 + 400, 500 + 400, -500, {{1, 0}}, {{0, 0}}}}},
+        {EBuildable::Smelter, {FMachineConfig{500, 500 + 400, 400 + 400, -500, {{0, 0}}, {{1, 0}}}}},
+        {EBuildable::Foundry, {FMachineConfig{1000, 700 + 400, 400 + 400, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
+        {EBuildable::Assembler, {FMachineConfig{900, 1000 + 400, 700 + 400, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
+        {EBuildable::Manufacturer,
          {FMachineConfig{1800, 1900 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
           FMachineConfig{1800, 1600 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
 
@@ -241,7 +241,7 @@ void UBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
                 BuildableCache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
         {
             const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
-            if (RowConfig.MachineType == EMachineType::Manufacturer && InputPorts == 3)
+            if (RowConfig.MachineType == EBuildable::Manufacturer && InputPorts == 3)
                 Variant = 1;
         }
     }
