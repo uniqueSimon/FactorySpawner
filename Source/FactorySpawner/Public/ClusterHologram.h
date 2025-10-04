@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "FGBuildableHologram.h"
-#include "MyChatSubsystem.h" // because of EBuildable
+#include "BuildPlanTypes.h"
 #include "ClusterHologram.generated.h"
 
 class UBuildPlanGenerator;
@@ -41,6 +41,8 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
     void SpawnPreviewHologram();
 
     void SpawnBuildPlan();
+
+    //helper functions
     void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
                     const TMap<FGuid, FBuiltThing>& SpawnedActors);
     void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,

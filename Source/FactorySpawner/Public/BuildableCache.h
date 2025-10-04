@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MyChatSubsystem.h" //to get EBuildable
+#include "BuildPlanTypes.h"
 #include "BuildableCache.generated.h"
 
 class AMyChatSubsystem;

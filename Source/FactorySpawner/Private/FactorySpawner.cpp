@@ -1,5 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #include "FactorySpawner.h"
 #include "FGChatManager.h"
 #include "Engine/World.h"

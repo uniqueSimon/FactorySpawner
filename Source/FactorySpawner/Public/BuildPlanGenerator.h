@@ -5,8 +5,6 @@
 #include "BuildPlanGenerator.generated.h"
 
 class UBuildableCache;
-class AMyChatSubsystem;
-struct FFactoryCommandToken;
 
 struct FCachedPowerConnections
 {
