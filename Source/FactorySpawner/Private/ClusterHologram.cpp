@@ -1,67 +1,56 @@
 ﻿#include "ClusterHologram.h"
-#include "FGFactoryHologram.h"
+#include "BuildPlanGenerator.h"
 #include "MyChatSubsystem.h"
-
-#include "Hologram/FGBuildableHologram.h"
-#include "Buildables/FGBuildableAttachmentSplitter.h"
-#include "Buildables/FGBuildableAttachmentMerger.h"
 #include "Buildables/FGBuildableManufacturer.h"
 #include "FGBuildableConveyorBelt.h"
-#include "Tests/FGTestBlueprintFunctionLibrary.h"
-#include "FGFactoryConnectionComponent.h"
-
-#include "FGChatManager.h"
-#include "Kismet/GameplayStatics.h"
-#include "FactorySpawner.h"
-
+#include "FGRecipeManager.h"
 #include "FGRecipe.h"
 #include "FGBuildablePowerPole.h"
 #include "FGBuildableWire.h"
-#include "FGCircuitConnectionComponent.h"
-#include "FGPowerConnectionComponent.h"
-#include "ItemAmount.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/StaticMeshComponent.h"
 #include "FGBuildingDescriptor.h"
-#include "FGRecipeManager.h"
-#include "FGBuildableConveyorLift.h"
-#include "BuildPlanGenerator.h"
 
 void AClusterHologram::BeginPlay()
 {
     Super::BeginPlay();
 
+    // Cache subsystem and build plan once
     AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(GetWorld());
-    if (Subsystem)
+    if (!Subsystem || !Subsystem->BuildableCache)
     {
-        const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
-        UBuildableCache* BuildableCache = Subsystem->BuildableCache;
+        UE_LOG(LogTemp, Warning, TEXT("ClusterHologram: No chat subsystem or buildable cache found!"));
+        return;
+    }
 
-        for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
+    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
+    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
+
+    for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
+    {
+        const TArray<UStaticMesh*>& StaticMeshes = BuildableCache->GetStaticMesh(Unit.Buildable);
+        for (UStaticMesh* StaticMesh : StaticMeshes)
         {
-            TArray<UStaticMesh*> StaticMeshes = BuildableCache->GetStaticMesh(Unit.Buildable);
-            for (UStaticMesh* StaticMesh : StaticMeshes)
-            {
-                if (StaticMesh)
-                {
-                    UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
-                    MeshComp->SetStaticMesh(StaticMesh);
-                    MeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+            if (!StaticMesh)
+                continue;
 
-                    MeshComp->SetRelativeLocation(Unit.Location);
-                    MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                    MeshComp->RegisterComponent();
-                    PreviewMeshes.Add(MeshComp);
-                }
-            }
+            // Create mesh component
+            UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
+            MeshComp->SetStaticMesh(StaticMesh);
+            MeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+            MeshComp->SetRelativeLocation(Unit.Location);
+            MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+            MeshComp->RegisterComponent();
+
+            PreviewMeshes.Add(MeshComp);
         }
     }
 }
 
-AActor* AClusterHologram::Construct(TArray<AActor*>& out_children, FNetConstructionID netConstructionID)
+AActor* AClusterHologram::Construct(TArray<AActor*>& OutChildren, FNetConstructionID NetConstructionID)
 {
-    AActor* Ret = Super::Construct(out_children, netConstructionID);
-
+    AActor* Ret = Super::Construct(OutChildren, NetConstructionID);
     SpawnBuildPlan();
-
     return Ret;
 }
 
@@ -70,41 +59,59 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
     TArray<FItemAmount> TotalCost;
 
     UWorld* World = GetWorld();
+    if (!World)
+        return TotalCost;
 
     AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(World);
+    if (!Subsystem || !Subsystem->BuildableCache)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ClusterHologram: No chat subsystem or buildable cache found!"));
+        return TotalCost;
+    }
+
     const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
     UBuildableCache* BuildableCache = Subsystem->BuildableCache;
-
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
+    if (!RecipeManager)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("ClusterHologram: No RecipeManager found!"));
+        return TotalCost;
+    }
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
         TSubclassOf<AFGBuildable> BuildableClass = BuildableCache->GetBuildableClass(Unit.Buildable);
+        if (!BuildableClass)
+            continue;
+
         TSubclassOf<UFGBuildingDescriptor> DescriptorClass =
             RecipeManager->FindBuildingDescriptorByClass(BuildableClass);
-
         if (!DescriptorClass)
-        {
-            // If buildable has not been unlocked, the descriptor is null! I just skip that for now.
             continue;
-        }
+
         TArray<TSubclassOf<UFGRecipe>> Recipes = RecipeManager->FindRecipesByProduct(DescriptorClass);
+        if (Recipes.Num() == 0)
+            continue;
 
         TSubclassOf<UFGRecipe> Recipe = Recipes[0];
-        UFGRecipe* RecipeCDO = Recipe->GetDefaultObject<UFGRecipe>();
+        if (!Recipe)
+            continue;
 
+        UFGRecipe* RecipeCDO = Recipe->GetDefaultObject<UFGRecipe>();
+        if (!RecipeCDO)
+            continue;
+
+        // Aggregate items
         for (const FItemAmount& Item : RecipeCDO->GetIngredients())
         {
-            FItemAmount* Existing =
-                TotalCost.FindByPredicate([&](const FItemAmount& X) { return X.ItemClass == Item.ItemClass; });
-
-            if (Existing)
+            if (FItemAmount* Existing =
+                    TotalCost.FindByPredicate([&](const FItemAmount& X) { return X.ItemClass == Item.ItemClass; }))
             {
                 Existing->Amount += Item.Amount;
             }
             else
             {
-                TotalCost.Add(FItemAmount(Item.ItemClass, Item.Amount));
+                TotalCost.Add(Item);
             }
         }
     }
