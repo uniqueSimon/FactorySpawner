@@ -6,7 +6,8 @@
 #include "BuildableCache.h"
 #include "FactoryCommandParser.h"
 #include "FactorySpawner.h"
-#include "FactoryCommandParser.h"
+#include "BuildPlanGenerator.h"
+#include "EngineUtils.h"
 
 namespace
 {
@@ -41,7 +42,60 @@ namespace
     }
 } // namespace
 
-FBuildPlan AMyChatSubsystem::CurrentBuildPlan;
+AMyChatSubsystem* AMyChatSubsystem::Get(UWorld* World)
+{
+    for (TActorIterator<AMyChatSubsystem> It(World); It; ++It)
+    {
+        return *It;
+    }
+    return nullptr;
+}
+
+void AMyChatSubsystem::BeginPlay()
+{
+    Super::BeginPlay();
+
+    UWorld* World = GetWorld();
+
+    // Create a fresh cache for this world
+    BuildableCache = NewObject<UBuildableCache>(this, UBuildableCache::StaticClass());
+    if (BuildableCache)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[ChatSubsystem] BuildableCache created for world: %s"), *World->GetName());
+    }
+
+    // Reset state for safety
+    ResetSubsystemData();
+
+    FBuildPlanGenerator BuildPlanGenerator(World);
+    CurrentBuildPlan = BuildPlanGenerator.Generate(DefaultClusterConfig, BuildableCache);
+
+    FFactorySpawnerModule::ChatLog(World,
+                                   "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
+                                   "automatic chat command generation!");
+}
+
+void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    UE_LOG(LogTemp, Log, TEXT("[ChatSubsystem] EndPlay — cleaning up cache and build plan."));
+
+    ResetSubsystemData();
+    BuildableCache = nullptr;
+
+    Super::EndPlay(EndPlayReason);
+}
+
+void AMyChatSubsystem::ResetSubsystemData()
+{
+    // Clear current build plan
+    CurrentBuildPlan = FBuildPlan();
+
+    // Optionally clear any cached data inside BuildableCache
+    if (BuildableCache)
+    {
+        BuildableCache->ClearCache();
+    }
+}
 
 AMyChatSubsystem::AMyChatSubsystem()
 {
@@ -74,7 +128,7 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
 
     UWorld* World = GetWorld();
     FBuildPlanGenerator BuildPlanGenerator(World);
-    CurrentBuildPlan = BuildPlanGenerator.Generate(CommandTokens);
+    CurrentBuildPlan = BuildPlanGenerator.Generate(CommandTokens, BuildableCache);
 
     SelectRecipeWithBuildGun(World);
 
@@ -86,7 +140,7 @@ EExecutionStatus AMyChatSubsystem::HandleBeltTierCommand(const FString& Input, U
     int32 Tier = 0;
     if (LexTryParseString(Tier, *Input) && Tier > 0 && Tier <= 8)
     {
-        UBuildableCache::SetBeltClass(Tier);
+        BuildableCache->SetBeltClass(Tier);
         Sender->SendChatMessage(FString::Printf(TEXT("Set Belt Tier Mk%d"), Tier), FLinearColor::Green);
         return EExecutionStatus::COMPLETED;
     }
@@ -94,17 +148,4 @@ EExecutionStatus AMyChatSubsystem::HandleBeltTierCommand(const FString& Input, U
     UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *ErrorMsg);
     Sender->SendChatMessage(ErrorMsg);
     return EExecutionStatus::BAD_ARGUMENTS;
-}
-
-void AMyChatSubsystem::BeginPlay()
-{
-    Super::BeginPlay();
-
-    UWorld* World = GetWorld();
-    FBuildPlanGenerator BuildPlanGenerator(World);
-    CurrentBuildPlan = BuildPlanGenerator.Generate(DefaultClusterConfig);
-
-    FFactorySpawnerModule::ChatLog(World,
-                                   "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
-                                   "automatic chat command generation!");
 }

@@ -31,11 +31,11 @@ class FBuildPlanGenerator
   public:
     FBuildPlanGenerator(UWorld* InWorld);
 
-    FBuildPlan Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
+    FBuildPlan Generate(const TArray<FFactoryCommandToken>& ClusterConfig, UBuildableCache* BuildableCache);
 
   private:
     // Internal helpers
-    void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex);
+    void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex, UBuildableCache* BuildableCache);
     void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex, const FMachineConfig& MachineConfig);
 
   private:

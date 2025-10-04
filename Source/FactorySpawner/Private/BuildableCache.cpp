@@ -82,19 +82,13 @@ namespace
     }
 } // namespace
 
-// Static cache definitions
-TMap<EBuildable, TSubclassOf<AFGBuildable>> UBuildableCache::CachedClasses;
-TMap<FString, TSubclassOf<UFGRecipe>> UBuildableCache::CachedRecipeClasses;
-TMap<EBuildable, TArray<UStaticMesh*>> UBuildableCache::CachedMeshes;
-TArray<FWrongRecipe> UBuildableCache::WrongRecipes;
-
 //-------------------------------------------------
 // Buildable class loader
 //-------------------------------------------------
 TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
 {
-    if (TSubclassOf<AFGBuildable>* Found = CachedClasses.Find(Type))
-        return *Found;
+    if (CachedClasses.Contains(Type))
+        return CachedClasses[Type];
 
     FString Path;
     if (!MachineClassPaths.Contains(Type))
@@ -126,8 +120,8 @@ void UBuildableCache::SetBeltClass(int32 Tier)
 TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
                                                        TSubclassOf<AFGBuildableManufacturer> ProducedIn, UWorld* World)
 {
-    if (TSubclassOf<UFGRecipe>* Found = CachedRecipeClasses.Find(Recipe))
-        return *Found;
+    if (CachedRecipeClasses.Contains(Recipe))
+        return CachedRecipeClasses[Recipe];
 
     if (WrongRecipes.ContainsByPredicate([&](const FWrongRecipe& Item)
                                          { return Item.Name == Recipe && Item.ProducedIn == ProducedIn->GetName(); }))
@@ -172,8 +166,8 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
 //-------------------------------------------------
 TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
 {
-    if (TArray<UStaticMesh*>* Found = CachedMeshes.Find(Type))
-        return *Found;
+    if (CachedMeshes.Contains(Type))
+        return CachedMeshes[Type];
 
     if (!MeshPaths.Contains(Type))
     {
@@ -190,4 +184,14 @@ TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
 
     CachedMeshes.Add(Type, LoadedMeshes);
     return LoadedMeshes;
+}
+
+void UBuildableCache::ClearCache()
+{
+    CachedClasses.Empty();
+    CachedRecipeClasses.Empty();
+    CachedMeshes.Empty();
+    WrongRecipes.Empty();
+
+    UE_LOG(LogFactorySpawner, Log, TEXT("[BuildableCache] Cleared all cached data."));
 }

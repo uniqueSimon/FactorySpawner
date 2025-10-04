@@ -1,12 +1,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Command/ChatCommandInstance.h"
+#include "ChatCommandInstance.h"
 #include "FactorySpawner.h"
 #include "MyChatSubsystem.generated.h"
 
 class FFactoryCommandParser;
 struct FFactoryCommandToken;
+class UBuildableCache;
 
 UENUM(BlueprintType)
 enum class EMachineType : uint8
@@ -74,12 +75,27 @@ class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
   public:
     AMyChatSubsystem();
 
-    static FBuildPlan CurrentBuildPlan;
+    // Static helper to find the subsystem instance in the current world
+    static AMyChatSubsystem* Get(UWorld* World);
+
+    /** Called when this actor enters the world */
+    void BeginPlay() override;
+
+    /** Called when this actor is removed from the world */
+    void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
     EExecutionStatus ExecuteCommand_Implementation(class UCommandSender* Sender, const TArray<FString>& Arguments,
                                                    const FString& Label) override;
 
-    void BeginPlay() override;
+    /** Clears current data (useful when changing savegames) */
+    void ResetSubsystemData();
+
+    /** The current generated build plan for this world */
+    FBuildPlan CurrentBuildPlan;
+
+    /** Cache for buildables and recipes (world-specific) */
+    UPROPERTY()
+    UBuildableCache* BuildableCache;
 
   private:
     EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);

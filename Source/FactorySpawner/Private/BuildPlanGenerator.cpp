@@ -206,7 +206,8 @@ FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld) : World(InWorld)
 {
 }
 
-FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
+FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig,
+                                         UBuildableCache* BuildableCache)
 {
     BuildPlan = FBuildPlan();
     YCursor = XCursor = FirstMachineWidth = 0;
@@ -214,24 +215,25 @@ FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& Clu
 
     for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
     {
-        ProcessRow(ClusterConfig[RowIndex], RowIndex);
+        ProcessRow(ClusterConfig[RowIndex], RowIndex, BuildableCache);
     }
 
     return BuildPlan;
 }
 
-void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
+void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex,
+                                     UBuildableCache* BuildableCache)
 {
     // determine variant, recipe, machine config, etc.
     const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
-    UClass* BaseClass = UBuildableCache::GetBuildableClass(MachineBuildable);
+    UClass* BaseClass = BuildableCache->GetBuildableClass(MachineBuildable);
     TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
 
     int32 Variant = 0;
     if (RowConfig.Recipe.IsSet())
     {
         if (TSubclassOf<UFGRecipe> RecipeClass =
-                UBuildableCache::GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
+                BuildableCache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
         {
             const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
             if (RowConfig.MachineType == EMachineType::Manufacturer && InputPorts == 3)

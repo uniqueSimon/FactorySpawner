@@ -29,23 +29,28 @@ void AClusterHologram::BeginPlay()
 {
     Super::BeginPlay();
 
-    FBuildPlan BuildPlan = AMyChatSubsystem::CurrentBuildPlan;
-
-    for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
+    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(GetWorld());
+    if (Subsystem)
     {
-        TArray<UStaticMesh*> StaticMeshes = UBuildableCache::GetStaticMesh(Unit.Buildable);
-        for (UStaticMesh* StaticMesh : StaticMeshes)
-        {
-            if (StaticMesh)
-            {
-                UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
-                MeshComp->SetStaticMesh(StaticMesh);
-                MeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+        const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
+        UBuildableCache* BuildableCache = Subsystem->BuildableCache;
 
-                MeshComp->SetRelativeLocation(Unit.Location);
-                MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-                MeshComp->RegisterComponent();
-                PreviewMeshes.Add(MeshComp);
+        for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
+        {
+            TArray<UStaticMesh*> StaticMeshes = BuildableCache->GetStaticMesh(Unit.Buildable);
+            for (UStaticMesh* StaticMesh : StaticMeshes)
+            {
+                if (StaticMesh)
+                {
+                    UStaticMeshComponent* MeshComp = NewObject<UStaticMeshComponent>(this);
+                    MeshComp->SetStaticMesh(StaticMesh);
+                    MeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
+
+                    MeshComp->SetRelativeLocation(Unit.Location);
+                    MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+                    MeshComp->RegisterComponent();
+                    PreviewMeshes.Add(MeshComp);
+                }
             }
         }
     }
@@ -55,19 +60,7 @@ AActor* AClusterHologram::Construct(TArray<AActor*>& out_children, FNetConstruct
 {
     AActor* Ret = Super::Construct(out_children, netConstructionID);
 
-    FBuildPlan BuildPlan = AMyChatSubsystem::CurrentBuildPlan;
-
-    UWorld* World = GetWorld();
-
-    if (BuildPlan.BuildableUnits.Num() == 0)
-    {
-        FFactorySpawnerModule::ChatLog(World, "Nothing to build! Define first a factory with this command: "
-                                              "/FactorySpawner <number> <machine type> <recipe>");
-    }
-
-    FTransform ActorTransform = GetActorTransform();
-
-    SpawnBuildPlan(BuildPlan, World, ActorTransform);
+    SpawnBuildPlan();
 
     return Ret;
 }
@@ -76,14 +69,17 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 {
     TArray<FItemAmount> TotalCost;
 
-    FBuildPlan BuildPlan = AMyChatSubsystem::CurrentBuildPlan;
-
     UWorld* World = GetWorld();
+
+    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(World);
+    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
+    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
+
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
-        TSubclassOf<AFGBuildable> BuildableClass = UBuildableCache::GetBuildableClass(Unit.Buildable);
+        TSubclassOf<AFGBuildable> BuildableClass = BuildableCache->GetBuildableClass(Unit.Buildable);
         TSubclassOf<UFGBuildingDescriptor> DescriptorClass =
             RecipeManager->FindBuildingDescriptorByClass(BuildableClass);
 

@@ -19,6 +19,9 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
     GENERATED_BODY()
 
   public:
+    UPROPERTY()
+    AMyChatSubsystem* ChatSubsystem;
+
     virtual AActor* Construct(TArray<AActor*>& out_children, FNetConstructionID netConstructionID) override;
 
     UPROPERTY()
@@ -26,10 +29,10 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
 
     TArray<FItemAmount> GetBaseCost() const override;
 
-    void SpawnBuildPlan(const FBuildPlan& Plan, UWorld* World, FTransform& ActorTransform);
+    void SpawnBuildPlan();
 
     TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
-                                             FTransform& ActorTransform);
+                                             FTransform& ActorTransform, UBuildableCache* BuildableCache);
 
   protected:
     virtual void BeginPlay() override;

@@ -52,9 +52,9 @@ namespace
     }
 
     void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
-                    const TMap<FGuid, FBuiltThing>& SpawnedActors)
+                    const TMap<FGuid, FBuiltThing>& SpawnedActors, UBuildableCache* BuildableCache)
     {
-        UClass* BaseClass = UBuildableCache::GetBuildableClass(EBuildable::PowerLine);
+        UClass* BaseClass = BuildableCache->GetBuildableClass(EBuildable::PowerLine);
         TSubclassOf<AFGBuildableWire> WireClass = BaseClass;
 
         for (const FWireConnection& Wire : WireConnections)
@@ -94,9 +94,10 @@ namespace
         }
     }
 
-    void ConnectWithBelts(UWorld* World, UFGFactoryConnectionComponent* FromConn, UFGFactoryConnectionComponent* ToConn)
+    void ConnectWithBelts(UWorld* World, UFGFactoryConnectionComponent* FromConn, UFGFactoryConnectionComponent* ToConn,
+                          UBuildableCache* BuildableCache)
     {
-        UClass* BaseClassBelt = UBuildableCache::GetBuildableClass(EBuildable::Belt);
+        UClass* BaseClassBelt = BuildableCache->GetBuildableClass(EBuildable::Belt);
         TSubclassOf<AFGBuildableConveyorBelt> BeltClass = BaseClassBelt;
         AFGBuildableConveyorBelt* SpawnedBelt = World->SpawnActor<AFGBuildableConveyorBelt>(BeltClass);
 
@@ -121,7 +122,7 @@ namespace
     }
 
     void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
-                    TMap<FGuid, FBuiltThing>& SpawnedActors)
+                    TMap<FGuid, FBuiltThing>& SpawnedActors, UBuildableCache* BuildableCache)
     {
         for (const FBeltConnection& Belt : BeltConnections)
         {
@@ -135,7 +136,7 @@ namespace
 
                 if (FromConn && ToConn)
                 {
-                    ConnectWithBelts(World, FromConn, ToConn);
+                    ConnectWithBelts(World, FromConn, ToConn, BuildableCache);
                 }
                 else
                 {
@@ -153,7 +154,7 @@ namespace
 } // namespace
 
 TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
-                                                           FTransform& ActorTransform)
+                                                           FTransform& ActorTransform, UBuildableCache* BuildableCache)
 {
     // Map to track spawned actors for each unit
     TMap<FGuid, FBuiltThing> SpawnedActors;
@@ -176,7 +177,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
         case EBuildable::Foundry:
         case EBuildable::Manufacturer:
         {
-            UClass* BaseClass = UBuildableCache::GetBuildableClass(Unit.Buildable);
+            UClass* BaseClass = BuildableCache->GetBuildableClass(Unit.Buildable);
             TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
             if (MachineClass)
             {
@@ -185,7 +186,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
                 {
                     FString RecipeName = Unit.Recipe.GetValue();
                     TSubclassOf<UFGRecipe> RecipeClass =
-                        UBuildableCache::GetRecipeClass(RecipeName, MachineClass, World);
+                        BuildableCache->GetRecipeClass(RecipeName, MachineClass, World);
                     if (RecipeClass)
                     {
                         AFGBuildableManufacturer* Manufacturer = Cast<AFGBuildableManufacturer>(Spawned);
@@ -207,7 +208,7 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
         case EBuildable::Merger:
         case EBuildable::PowerPole:
         {
-            TSubclassOf<AFGBuildable> BuildableClass = UBuildableCache::GetBuildableClass(Unit.Buildable);
+            TSubclassOf<AFGBuildable> BuildableClass = BuildableCache->GetBuildableClass(Unit.Buildable);
             Spawned = World->SpawnActor<AFGBuildable>(BuildableClass, Location);
 
             break;
@@ -224,11 +225,27 @@ TMap<FGuid, FBuiltThing> AClusterHologram::SpawnBuildables(const TArray<FBuildab
     return SpawnedActors;
 }
 
-void AClusterHologram::SpawnBuildPlan(const FBuildPlan& Plan, UWorld* World, FTransform& ActorTransform)
+void AClusterHologram::SpawnBuildPlan()
 {
-    TMap<FGuid, FBuiltThing> SpawnedActors = SpawnBuildables(Plan.BuildableUnits, World, ActorTransform);
+    UWorld* World = GetWorld();
+    AMyChatSubsystem* Subsystem = AMyChatSubsystem::Get(World);
+    const FBuildPlan& BuildPlan = Subsystem->CurrentBuildPlan;
+    UBuildableCache* BuildableCache = Subsystem->BuildableCache;
 
-    SpawnWires(World, Plan.WireConnections, SpawnedActors);
+    if (BuildPlan.BuildableUnits.Num() == 0)
+    {
+        FFactorySpawnerModule::ChatLog(World, "Nothing to build! Define first a factory with this command: "
+                                              "/FactorySpawner <number> <machine type> <recipe>");
+    }
+    else
+    {
+        FTransform ActorTransform = GetActorTransform();
 
-    SpawnBelts(World, Plan.BeltConnections, SpawnedActors);
+        TMap<FGuid, FBuiltThing> SpawnedActors =
+            SpawnBuildables(BuildPlan.BuildableUnits, World, ActorTransform, BuildableCache);
+
+        SpawnWires(World, BuildPlan.WireConnections, SpawnedActors, BuildableCache);
+
+        SpawnBelts(World, BuildPlan.BeltConnections, SpawnedActors, BuildableCache);
+    }
 }
