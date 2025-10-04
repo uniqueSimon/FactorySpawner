@@ -42,10 +42,9 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
 
     void SpawnBuildPlan();
     void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
-                                      const TMap<FGuid, FBuiltThing>& SpawnedActors);
+                    const TMap<FGuid, FBuiltThing>& SpawnedActors);
     void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
-                                      TMap<FGuid, FBuiltThing>& SpawnedActors);
-    TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& BuildableUnits, UWorld* World,
-                                             FTransform& ActorTransform);
-
+                    TMap<FGuid, FBuiltThing>& SpawnedActors);
+    TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& Units, UWorld* World,
+                                             const FTransform& BaseTransform);
 };

@@ -33,7 +33,8 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
 
   public:
     // Buildable class loader
-    TSubclassOf<AFGBuildable> GetBuildableClass(EBuildable Type);
+    template <typename T>
+    TSubclassOf<T> GetBuildableClass(EBuildable Type);
 
     void SetBeltClass(int32 Tier);
 

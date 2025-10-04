@@ -9,6 +9,7 @@
 #include "FGBuildableWire.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/StaticMeshComponent.h"
+#include "BuildableCache.h"
 #include "FGBuildingDescriptor.h"
 
 void AClusterHologram::BeginPlay()
@@ -93,7 +94,7 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
-        TSubclassOf<AFGBuildable> BuildableClass = CachePointer->GetBuildableClass(Unit.Buildable);
+        TSubclassOf<AFGBuildable> BuildableClass = CachePointer->GetBuildableClass<AFGBuildable>(Unit.Buildable);
         if (!BuildableClass)
             continue;
 

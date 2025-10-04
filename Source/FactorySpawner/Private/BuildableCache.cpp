@@ -86,10 +86,10 @@ namespace
 //-------------------------------------------------
 // Buildable class loader
 //-------------------------------------------------
-TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
+template <typename T> TSubclassOf<T> UBuildableCache::GetBuildableClass(EBuildable Type)
 {
     if (CachedClasses.Contains(Type))
-        return CachedClasses[Type];
+        return Cast<UClass>(CachedClasses[Type]);
 
     FString Path;
     if (!MachineClassPaths.Contains(Type))
@@ -98,7 +98,7 @@ TSubclassOf<AFGBuildable> UBuildableCache::GetBuildableClass(EBuildable Type)
     else
         Path = MachineClassPaths[Type];
 
-    TSubclassOf<AFGBuildable> LoadedClass = LoadClassSoft<AFGBuildable>(Path, Type);
+    TSubclassOf<T> LoadedClass = LoadClassSoft<T>(Path, Type);
     if (LoadedClass)
         CachedClasses.Add(Type, LoadedClass);
 

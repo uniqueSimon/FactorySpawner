@@ -231,8 +231,8 @@ void UBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
 {
     // determine variant, recipe, machine config, etc.
     const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
-    UClass* BaseClass = BuildableCache->GetBuildableClass(MachineBuildable);
-    TSubclassOf<AFGBuildableManufacturer> MachineClass = BaseClass;
+    TSubclassOf<AFGBuildableManufacturer> MachineClass =
+        BuildableCache->GetBuildableClass<AFGBuildableManufacturer>(MachineBuildable);
 
     int32 Variant = 0;
     if (RowConfig.Recipe.IsSet())
