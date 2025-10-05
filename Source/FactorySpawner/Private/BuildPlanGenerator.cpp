@@ -202,43 +202,37 @@ namespace
     }
 } // namespace
 
-void UBuildPlanGenerator::Initialize(UWorld* InWorld, UBuildableCache* InCache)
+FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache) : World(InWorld), Cache(InCache)
 {
-    World = InWorld;
-    BuildableCache = InCache;
 }
 
-void UBuildPlanGenerator::ResetCurrentBuildPlan()
+FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
 {
-    CurrentBuildPlan.BuildableUnits.Empty();
-    CurrentBuildPlan.BeltConnections.Empty();
-    CurrentBuildPlan.WireConnections.Empty();
-}
-
-void UBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
-{
-    CurrentBuildPlan = FBuildPlan();
+    BuildPlan = FBuildPlan();
     YCursor = XCursor = FirstMachineWidth = 0;
     CachedPowerConnections = {};
 
-    for (int32 RowIndex = 0; RowIndex < ClusterConfig.Num(); ++RowIndex)
+    int32 RowIndex = 0;
+    for (const FFactoryCommandToken& RowConfig : ClusterConfig)
     {
-        ProcessRow(ClusterConfig[RowIndex], RowIndex);
+        ProcessRow(RowConfig, RowIndex++);
     }
+
+    return BuildPlan;
 }
 
-void UBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
+void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
 {
     // determine variant, recipe, machine config, etc.
     const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
     TSubclassOf<AFGBuildableManufacturer> MachineClass =
-        BuildableCache->GetBuildableClass<AFGBuildableManufacturer>(MachineBuildable);
+        Cache->GetBuildableClass<AFGBuildableManufacturer>(MachineBuildable);
 
     int32 Variant = 0;
     if (RowConfig.Recipe.IsSet())
     {
         if (TSubclassOf<UFGRecipe> RecipeClass =
-                BuildableCache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
+                Cache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
         {
             const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
             if (RowConfig.MachineType == EBuildable::Manufacturer && InputPorts == 3)
@@ -263,7 +257,7 @@ void UBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
     CachedPowerConnections.LastPole.Invalidate();
 }
 
-void UBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
+void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
                                         const FMachineConfig& MachineConfig)
 {
     FConnectionQueue ConnectionQueue;
@@ -274,7 +268,7 @@ void UBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, i
         const bool bEvenIndex = (i % 2 == 0);
         const bool bLastIndex = (i == RowConfig.Count - 1);
 
-        CalculateMachineSetup(CurrentBuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
+        CalculateMachineSetup(BuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
                               RowConfig.ClockPercent, XCursor, YCursor, MachineConfig, ConnectionQueue,
                               CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
 

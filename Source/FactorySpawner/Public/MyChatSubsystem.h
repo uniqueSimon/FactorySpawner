@@ -28,13 +28,22 @@ class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
     /** Clears current data (useful when changing savegames) */
     void ResetSubsystemData();
 
-    /** Cache for buildables and recipes (world-specific) */
-    UPROPERTY()
-    UBuildableCache* BuildableCache;
+    const FBuildPlan& GetBuildPlan() const
+    {
+        return CurrentBuildPlan;
+    }
 
-    UPROPERTY()
-    UBuildPlanGenerator* BuildPlanGenerator;
+    UBuildableCache* GetCache() const
+    {
+        return BuildableCache;
+    }
 
   private:
     EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
+
+    FBuildPlan CurrentBuildPlan;
+
+    /** Cache for buildables and recipes (world-specific) */
+    UPROPERTY()
+    UBuildableCache* BuildableCache;
 };

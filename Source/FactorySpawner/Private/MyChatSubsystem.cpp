@@ -20,8 +20,7 @@ namespace
     void SelectRecipeWithBuildGun(UWorld* World)
     {
         FString RecipePath = TEXT("/FactorySpawner/Recipe_ConstructorGroup.Recipe_ConstructorGroup_C");
-        TSoftClassPtr<AFGBuildable> SoftClassPtr(RecipePath);
-        TSubclassOf<UFGRecipe> LoadedRecipe = SoftClassPtr.LoadSynchronous();
+        TSubclassOf<UFGRecipe> LoadedRecipe = StaticLoadClass(UFGRecipe::StaticClass(), nullptr, *RecipePath);
         APlayerController* PlayerController = World->GetFirstPlayerController();
         AFGCharacterPlayer* PlayerCasted = Cast<AFGCharacterPlayer>(PlayerController->GetCharacter());
         AFGBuildGun* BuildGun = PlayerCasted->GetBuildGun();
@@ -50,17 +49,11 @@ void AMyChatSubsystem::BeginPlay()
         BuildableCache = NewObject<UBuildableCache>(this);
     }
 
-    // Create BuildPlanGenerator if not existing
-    if (!BuildPlanGenerator)
-    {
-        BuildPlanGenerator = NewObject<UBuildPlanGenerator>(this);
-        BuildPlanGenerator->Initialize(World, BuildableCache);
-    }
-
     // Reset state for safety
     ResetSubsystemData();
 
-    BuildPlanGenerator->Generate(DefaultClusterConfig);
+    FBuildPlanGenerator Generator(World, BuildableCache);
+    CurrentBuildPlan = Generator.Generate(DefaultClusterConfig);
 
     FFactorySpawnerModule::ChatLog(World,
                                    "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
@@ -79,10 +72,7 @@ void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AMyChatSubsystem::ResetSubsystemData()
 {
-    if (BuildPlanGenerator)
-    {
-        BuildPlanGenerator->ResetCurrentBuildPlan();
-    }
+    CurrentBuildPlan = FBuildPlan();
 
     if (BuildableCache)
     {
@@ -120,13 +110,9 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
     }
 
     UWorld* World = GetWorld();
-    if (!World || !BuildPlanGenerator)
-    {
-        UE_LOG(LogTemp, Error, TEXT("BuildPlanGenerator not ready in ExecuteCommand"));
-        return EExecutionStatus::UNCOMPLETED;
-    }
 
-    BuildPlanGenerator->Generate(CommandTokens);
+    FBuildPlanGenerator Generator(World, BuildableCache);
+    CurrentBuildPlan = Generator.Generate(CommandTokens);
 
     SelectRecipeWithBuildGun(World);
 

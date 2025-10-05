@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "BuildPlanTypes.h"
-#include "BuildPlanGenerator.generated.h"
 
 class UBuildableCache;
 
@@ -29,43 +28,22 @@ struct FMachineConfig
     TArray<FConnector> Output;
 };
 
-UCLASS()
-class FACTORYSPAWNER_API UBuildPlanGenerator : public UObject
+class FBuildPlanGenerator
 {
-    GENERATED_BODY()
+public:
+    explicit FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache);
 
-  public:
-    /** Initialize generator with a valid world and cache reference */
-    void Initialize(UWorld* InWorld, UBuildableCache* InCache);
+    FBuildPlan Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
 
-    /** Generate a new plan from parsed tokens */
-    void Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
-
-    /** Access current build plan */
-    const FBuildPlan& GetCurrentBuildPlan() const
-    {
-        return CurrentBuildPlan;
-    }
-
-    void ResetCurrentBuildPlan();
-
-  private:
-    // --- Internal helper functions ---
+private:
     void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex);
     void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex, const FMachineConfig& MachineConfig);
 
-    /** The world context this generator operates in */
-    UPROPERTY()
-    UWorld* World = nullptr;
+private:
+    UWorld* World;
+    UBuildableCache* Cache;
+    FBuildPlan BuildPlan;
 
-    /** The cache instance used to resolve buildables and meshes */
-    UPROPERTY()
-    UBuildableCache* BuildableCache = nullptr;
-
-    /** The resulting plan after generation */
-    FBuildPlan CurrentBuildPlan;
-
-    /** Internal state */
     int32 YCursor = 0;
     int32 XCursor = 0;
     int32 FirstMachineWidth = 0;

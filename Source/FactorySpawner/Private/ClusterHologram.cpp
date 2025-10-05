@@ -17,6 +17,11 @@ void AClusterHologram::BeginPlay()
 {
     Super::BeginPlay();
 
+    SpawnPreviewHologram();
+}
+
+void AClusterHologram::SpawnPreviewHologram()
+{
     UWorld* World = GetWorld();
     if (!World)
         return;
@@ -28,22 +33,14 @@ void AClusterHologram::BeginPlay()
         return;
     }
 
-    CachePointer = ChatSubsystemPointer->BuildableCache;
-    GeneratorPointer = ChatSubsystemPointer->BuildPlanGenerator;
+    UBuildableCache* CachePointer = ChatSubsystemPointer->GetCache();
+    const FBuildPlan& BuildPlan = ChatSubsystemPointer->GetBuildPlan();
 
-    if (!CachePointer || !GeneratorPointer)
+    if (!CachePointer)
     {
-        UE_LOG(LogTemp, Warning, TEXT("BuildPlanGenerator or BuildableCache not initialized."));
+        UE_LOG(LogTemp, Warning, TEXT("BuildableCache not initialized."));
         return;
     }
-
-    SpawnPreviewHologram();
-}
-
-void AClusterHologram::SpawnPreviewHologram()
-{
-    // Get the current plan directly from the generator
-    const FBuildPlan& BuildPlan = GeneratorPointer->GetCurrentBuildPlan();
 
     for (const FBuildableUnit& Unit : BuildPlan.BuildableUnits)
     {
@@ -70,17 +67,18 @@ AActor* AClusterHologram::Construct(TArray<AActor*>& OutChildren, FNetConstructi
 {
     AActor* Ret = Super::Construct(OutChildren, NetConstructionID);
 
-    if (!GeneratorPointer || !CachePointer)
+    if (!ChatSubsystemPointer)
         return Ret;
+
+    UBuildableCache* CachePointer = ChatSubsystemPointer->GetCache();
+    const FBuildPlan& BuildPlan = ChatSubsystemPointer->GetBuildPlan();
 
     UWorld* World = GetWorld();
     if (!World)
         return Ret;
 
-    const FBuildPlan& Plan = GeneratorPointer->GetCurrentBuildPlan();
-
     FClusterSpawner Spawner(World, CachePointer);
-    Spawner.SpawnBuildPlan(Plan, GetActorTransform());
+    Spawner.SpawnBuildPlan(BuildPlan, GetActorTransform());
 
     return Ret;
 }
@@ -89,14 +87,15 @@ TArray<FItemAmount> AClusterHologram::GetBaseCost() const
 {
     TArray<FItemAmount> TotalCost;
 
-    if (!GeneratorPointer || !CachePointer)
+    if (!ChatSubsystemPointer)
         return TotalCost;
+
+    UBuildableCache* CachePointer = ChatSubsystemPointer->GetCache();
+    const FBuildPlan& BuildPlan = ChatSubsystemPointer->GetBuildPlan();
 
     UWorld* World = GetWorld();
     if (!World)
         return TotalCost;
-
-    const FBuildPlan& BuildPlan = GeneratorPointer->GetCurrentBuildPlan();
 
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
     if (!RecipeManager)

@@ -23,12 +23,6 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
     AMyChatSubsystem* ChatSubsystemPointer = nullptr;
 
     UPROPERTY()
-    UBuildPlanGenerator* GeneratorPointer = nullptr;
-
-    UPROPERTY()
-    UBuildableCache* CachePointer = nullptr;
-
-    UPROPERTY()
     TArray<UStaticMeshComponent*> PreviewMeshes;
 
     void SpawnPreviewHologram();
