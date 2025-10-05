@@ -62,8 +62,6 @@ void AMyChatSubsystem::BeginPlay()
 
 void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    UE_LOG(LogTemp, Log, TEXT("[ChatSubsystem] EndPlay — cleaning up cache and build plan."));
-
     ResetSubsystemData();
     BuildableCache = nullptr;
 
