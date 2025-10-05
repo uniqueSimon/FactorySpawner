@@ -81,12 +81,10 @@ Your factory will be ready in seconds! 🚀
 All placed buildables are just **vanilla ones**, so you can safely uninstall the mod at any time.
 
 ## Known issues
-- After switching save games, the game crashes. You have to restart the game, then it works again.
 - The schematic can be unlocked before splitter and merger. In that case those are not added to the cost calculation. I should add that dependency.
 - You can spawn machines that have not yet been unlocked, like manufacturers.
 
 ## Future plans
-- Fix save game bug
 - Add all remaining machines
 - Add conveyor lifts (Have to find out how to spawn them properly)
 - Improve preview hologram
