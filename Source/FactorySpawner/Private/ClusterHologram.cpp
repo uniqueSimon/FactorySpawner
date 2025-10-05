@@ -11,6 +11,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "BuildableCache.h"
 #include "FGBuildingDescriptor.h"
+#include "ClusterSpawner.h"
 
 void AClusterHologram::BeginPlay()
 {
@@ -68,7 +69,19 @@ void AClusterHologram::SpawnPreviewHologram()
 AActor* AClusterHologram::Construct(TArray<AActor*>& OutChildren, FNetConstructionID NetConstructionID)
 {
     AActor* Ret = Super::Construct(OutChildren, NetConstructionID);
-    SpawnBuildPlan();
+
+    if (!GeneratorPointer || !CachePointer)
+        return Ret;
+
+    UWorld* World = GetWorld();
+    if (!World)
+        return Ret;
+
+    const FBuildPlan& Plan = GeneratorPointer->GetCurrentBuildPlan();
+
+    FClusterSpawner Spawner(World, CachePointer);
+    Spawner.SpawnBuildPlan(Plan, GetActorTransform());
+
     return Ret;
 }
 

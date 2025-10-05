@@ -8,13 +8,6 @@
 class UBuildPlanGenerator;
 class UBuildableCache;
 
-struct FBuiltThing
-{
-    AFGBuildable* Spawned = nullptr;
-    EBuildable Buildable;
-    FVector Position;
-};
-
 UCLASS()
 class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
 {
@@ -39,14 +32,4 @@ class FACTORYSPAWNER_API AClusterHologram : public AFGBuildableHologram
     TArray<UStaticMeshComponent*> PreviewMeshes;
 
     void SpawnPreviewHologram();
-
-    void SpawnBuildPlan();
-
-    //helper functions
-    void SpawnWires(UWorld* World, const TArray<FWireConnection>& WireConnections,
-                    const TMap<FGuid, FBuiltThing>& SpawnedActors);
-    void SpawnBelts(UWorld* World, const TArray<FBeltConnection>& BeltConnections,
-                    TMap<FGuid, FBuiltThing>& SpawnedActors);
-    TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& Units, UWorld* World,
-                                             const FTransform& BaseTransform);
 };
