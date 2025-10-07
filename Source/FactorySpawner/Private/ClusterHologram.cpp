@@ -55,6 +55,12 @@ void AClusterHologram::SpawnPreviewHologram()
             MeshComp->SetStaticMesh(StaticMesh);
             MeshComp->AttachToComponent(RootComponent, FAttachmentTransformRules::KeepRelativeTransform);
             MeshComp->SetRelativeLocation(Unit.Location);
+            if (Unit.Buildable == EBuildable::Smelter)
+            {
+                FRotator BaseRotation = RootComponent->GetComponentRotation();
+                BaseRotation.Yaw += 180.0f;
+                MeshComp->SetRelativeRotation(BaseRotation);
+            }
             MeshComp->SetCollisionEnabled(ECollisionEnabled::NoCollision);
             MeshComp->RegisterComponent();
 
