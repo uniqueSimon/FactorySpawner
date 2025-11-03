@@ -4,7 +4,7 @@
 #include "SoftObjectPtr.h"
 #include "FGBuildableManufacturer.h"
 #include "FactorySpawner.h"
-#include "MyChatSubsystem.h"
+#include "FactorySpawnerChat.h"
 
 namespace
 {

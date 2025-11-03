@@ -4,7 +4,7 @@
 #include "BuildPlanTypes.h"
 #include "BuildableCache.generated.h"
 
-class AMyChatSubsystem;
+class AFactorySpawnerChat;
 class AFGBuildable;
 class AFGBuildableConveyorBelt;
 class AFGBuildableManufacturer;

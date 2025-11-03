@@ -1,6 +1,6 @@
 ﻿#include "ClusterHologram.h"
 #include "BuildPlanGenerator.h"
-#include "MyChatSubsystem.h"
+#include "FactorySpawnerChat.h"
 #include "Buildables/FGBuildableManufacturer.h"
 #include "FGBuildableConveyorBelt.h"
 #include "FGRecipeManager.h"
@@ -26,7 +26,7 @@ void AClusterHologram::SpawnPreviewHologram()
     if (!World)
         return;
 
-    ChatSubsystemPointer = AMyChatSubsystem::Get(World);
+    ChatSubsystemPointer = AFactorySpawnerChat::Get(World);
     if (!ChatSubsystemPointer)
     {
         UE_LOG(LogTemp, Warning, TEXT("No ChatSubsystem found!"));

@@ -1,5 +1,5 @@
 #include "BuildPlanGenerator.h"
-#include "MyChatSubsystem.h"
+#include "FactorySpawnerChat.h"
 #include "FactorySpawner.h"
 #include "FGRecipe.h"
 #include "BuildableCache.h"

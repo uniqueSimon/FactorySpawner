@@ -1,4 +1,4 @@
-#include "MyChatSubsystem.h"
+#include "FactorySpawnerChat.h"
 #include "FGRecipe.h"
 #include "FGBuildGun.h"
 #include "FGCharacterPlayer.h"
@@ -28,16 +28,16 @@ namespace
     }
 } // namespace
 
-AMyChatSubsystem* AMyChatSubsystem::Get(UWorld* World)
+AFactorySpawnerChat* AFactorySpawnerChat::Get(UWorld* World)
 {
-    for (TActorIterator<AMyChatSubsystem> It(World); It; ++It)
+    for (TActorIterator<AFactorySpawnerChat> It(World); It; ++It)
     {
         return *It;
     }
     return nullptr;
 }
 
-void AMyChatSubsystem::BeginPlay()
+void AFactorySpawnerChat::BeginPlay()
 {
     Super::BeginPlay();
 
@@ -60,7 +60,7 @@ void AMyChatSubsystem::BeginPlay()
                                    "automatic chat command generation!");
 }
 
-void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void AFactorySpawnerChat::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     ResetSubsystemData();
     BuildableCache = nullptr;
@@ -68,7 +68,7 @@ void AMyChatSubsystem::EndPlay(const EEndPlayReason::Type EndPlayReason)
     Super::EndPlay(EndPlayReason);
 }
 
-void AMyChatSubsystem::ResetSubsystemData()
+void AFactorySpawnerChat::ResetSubsystemData()
 {
     CurrentBuildPlan = FBuildPlan();
 
@@ -78,7 +78,7 @@ void AMyChatSubsystem::ResetSubsystemData()
     }
 }
 
-AMyChatSubsystem::AMyChatSubsystem()
+AFactorySpawnerChat::AFactorySpawnerChat()
 {
     CommandName = TEXT("FactorySpawner");
     MinNumberOfArguments = 2;
@@ -86,7 +86,7 @@ AMyChatSubsystem::AMyChatSubsystem()
                               "<recipe 2>; /FactorySpawner BeltTier <number>");
 }
 
-EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender* Sender,
+EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSender* Sender,
                                                                  const TArray<FString>& Arguments, const FString& Label)
 {
     FString Joined = FString::Join(Arguments, TEXT(" "));
@@ -117,7 +117,7 @@ EExecutionStatus AMyChatSubsystem::ExecuteCommand_Implementation(UCommandSender*
     return EExecutionStatus::COMPLETED;
 }
 
-EExecutionStatus AMyChatSubsystem::HandleBeltTierCommand(const FString& Input, UCommandSender* Sender)
+EExecutionStatus AFactorySpawnerChat::HandleBeltTierCommand(const FString& Input, UCommandSender* Sender)
 {
     int32 Tier = 0;
     if (LexTryParseString(Tier, *Input) && Tier > 0 && Tier <= 8)

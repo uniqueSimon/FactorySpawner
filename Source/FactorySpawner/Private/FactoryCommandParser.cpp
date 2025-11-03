@@ -1,5 +1,5 @@
 #include "FactoryCommandParser.h"
-#include "MyChatSubsystem.h"
+#include "FactorySpawnerChat.h"
 
 static inline EBuildable ParseBuildableFromString(const FString& Input)
 {

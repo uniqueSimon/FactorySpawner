@@ -3,21 +3,21 @@
 #include "CoreMinimal.h"
 #include "ChatCommandInstance.h"
 #include "BuildPlanTypes.h"
-#include "MyChatSubsystem.generated.h"
+#include "FactorySpawnerChat.generated.h"
 
 class UBuildPlanGenerator;
 class UBuildableCache;
 
 UCLASS()
-class FACTORYSPAWNER_API AMyChatSubsystem : public AChatCommandInstance
+class FACTORYSPAWNER_API AFactorySpawnerChat : public AChatCommandInstance
 {
     GENERATED_BODY()
 
   public:
-    AMyChatSubsystem();
+    AFactorySpawnerChat();
 
     // Static helper to find the subsystem instance in the current world
-    static AMyChatSubsystem* Get(UWorld* World);
+    static AFactorySpawnerChat* Get(UWorld* World);
 
     void BeginPlay() override;
     void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
