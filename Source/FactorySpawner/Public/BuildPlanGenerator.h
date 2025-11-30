@@ -16,6 +16,7 @@ struct FConnector
 {
     int32 Index = 0;
     int32 LocationX = 0;
+    int32 LocationY = 0;
 };
 
 struct FMachineConnections

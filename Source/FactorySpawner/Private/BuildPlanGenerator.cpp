@@ -68,23 +68,27 @@ namespace
                         {FMachineConnections{800, {{FConnector{1, -200}}}, {}}}}},
         {EBuildable::Assembler,
          FMachineConfig{900,
-                        {FMachineConnections{1400, {{FConnector{1, -200}}, {FConnector{2, 200}}}, {}}},
+                        {FMachineConnections{1400, {{FConnector{1, -200}}, {FConnector{2, 200, 200}}}, {}}},
                         {FMachineConnections{1100, {{FConnector{0, 0}}}, {}}}}},
         {EBuildable::OilRefinery,
          FMachineConfig{1000,
-                        {FMachineConnections{2000, {{FConnector{0, -200}}}, {FConnector{1, 200}}},
-                         FMachineConnections{1500, {}, {FConnector{1, 200}}},
-                         FMachineConnections{1500, {{FConnector{0, -200}}}, {}}},
-                        {FMachineConnections{2000, {{FConnector{1, -200}}}, {FConnector{0, 200}}},
-                         FMachineConnections{2000, {{FConnector{1, -200}}}, {}},
-                         FMachineConnections{2000, {}, {FConnector{0, 200}}}}}},
+                        {FMachineConnections{2000, {{FConnector{0, -200, 400}}}, {FConnector{1, 200}}},
+                         FMachineConnections{1500, {{FConnector{0, -200}}}, {}},
+                         FMachineConnections{1500, {}, {FConnector{1, 200}}}},
+                        {FMachineConnections{2000, {{FConnector{1, -200, 400}}}, {FConnector{0, 200}}},
+                         FMachineConnections{1500, {{FConnector{1, -200}}}, {}},
+                         FMachineConnections{1500, {}, {FConnector{0, 200}}}}}},
         {EBuildable::Manufacturer,
-         FMachineConfig{
-             1800,
-             {FMachineConnections{
-                  2300, {{FConnector{4, -600}}, {FConnector{2, -200}}, {FConnector{1, 200}}, {FConnector{0, 600}}}, {}},
-              FMachineConnections{2000, {{FConnector{4, -600}}, {FConnector{2, -200}}, {FConnector{1, 200}}}, {}}},
-             {FMachineConnections{1300, {{FConnector{3, 0}}}, {}}}}},
+         FMachineConfig{1800,
+                        {FMachineConnections{2300,
+                                             {{FConnector{4, -600}},
+                                              {FConnector{2, -200, 200}},
+                                              {FConnector{1, 200, 400}},
+                                              {FConnector{0, 600, 600}}},
+                                             {}},
+                         FMachineConnections{
+                             2000, {{FConnector{4, -600}}, {FConnector{2, -200, 200}}, {FConnector{1, 200, 400}}}, {}}},
+                        {FMachineConnections{1300, {{FConnector{3, 0}}}, {}}}}},
     };
 
     // ---------- helpers to add units/connections ----------
@@ -178,13 +182,11 @@ namespace
         }
 
         // Input splitters and belt wiring
-        int32 HeightOffset = 0;
         for (const FConnector& Conn : InputConnections.Belt)
         {
             FGuid SplitterId = FGuid::NewGuid();
             const FVector SplitterLocation =
-                MachineLocation +
-                FVector((float) Conn.LocationX, -InputConnections.Length + 200.0f, 100.0f + (float) HeightOffset);
+                MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 100.0f + Conn.LocationY);
             AddBuildableUnit(BuildPlan, SplitterId, EBuildable::Splitter, SplitterLocation);
 
             // connect previous item -> splitter (if present)
@@ -202,8 +204,6 @@ namespace
 
             // connect splitter -> machine input socket
             AddBelt(BuildPlan, SplitterId, 3, MachineId, Conn.Index);
-
-            HeightOffset += 200;
         }
 
         // Output mergers and belt wiring
@@ -211,7 +211,7 @@ namespace
         {
             FGuid MergerId = FGuid::NewGuid();
             const FVector MergerLocation =
-                MachineLocation + FVector((float) Conn.LocationX, (float) OutputConnections.Length - 200.0f, 100.0f);
+                MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 100.0f + Conn.LocationY);
             AddBuildableUnit(BuildPlan, MergerId, EBuildable::Merger, MergerLocation);
 
             // connect merger -> previously enqueued output (if present)
@@ -232,13 +232,11 @@ namespace
         }
 
         // Input pipes
-        int32 PipeHeightOffset = 0;
         for (const FConnector& Conn : InputConnections.Pipe)
         {
             FGuid PipeCrossId = FGuid::NewGuid();
             const FVector PipeCrossLocation =
-                MachineLocation +
-                FVector((float) Conn.LocationX, -InputConnections.Length + 200.0f, 175.0f + (float) PipeHeightOffset);
+                MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 175.0f + Conn.LocationY);
             AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
 
             // connect previous item -> pipe cross (if present)
@@ -256,8 +254,6 @@ namespace
 
             // connect pipe cross -> machine input socket
             AddPipe(BuildPlan, PipeCrossId, 1, MachineId, Conn.Index);
-
-            PipeHeightOffset += 200;
         }
 
         // Output pipes
@@ -265,7 +261,7 @@ namespace
         {
             FGuid PipeCrossId = FGuid::NewGuid();
             const FVector PipeCrossLocation =
-                MachineLocation + FVector((float) Conn.LocationX, (float) OutputConnections.Length - 200.0f, 175.0f);
+                MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 175.0f + Conn.LocationY);
             AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
 
             // connect pipe cross -> previously enqueued output (if present)
@@ -323,9 +319,39 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
         if (TSubclassOf<UFGRecipe> RecipeClass =
                 Cache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World))
         {
-            const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
+            TArray<FItemAmount> Ingredients = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients();
+            TArray<FItemAmount> Products = RecipeClass->GetDefaultObject<UFGRecipe>()->GetProducts();
+            const int32 InputPorts = Ingredients.Num();
+            const int32 OutputPorts = Products.Num();
             if (RowConfig.MachineType == EBuildable::Manufacturer && InputPorts == 3)
                 InputVariant = 1;
+            else if (RowConfig.MachineType == EBuildable::OilRefinery)
+            {
+                if (InputPorts == 1)
+                {
+                    EResourceForm Form = UFGItemDescriptor::GetForm(Ingredients[0].ItemClass);
+                    if (Form == EResourceForm::RF_SOLID)
+                    {
+                        InputVariant = 1;
+                    }
+                    else if (Form == EResourceForm::RF_LIQUID)
+                    {
+                        InputVariant = 2;
+                    }
+                }
+                if (OutputPorts == 1)
+                {
+                    EResourceForm Form = UFGItemDescriptor::GetForm(Products[0].ItemClass);
+                    if (Form == EResourceForm::RF_SOLID)
+                    {
+                        OutputVariant = 1;
+                    }
+                    else if (Form == EResourceForm::RF_LIQUID)
+                    {
+                        OutputVariant = 2;
+                    }
+                }
+            }
         }
     }
 
