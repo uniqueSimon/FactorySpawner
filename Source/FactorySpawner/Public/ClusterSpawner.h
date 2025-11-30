@@ -24,6 +24,7 @@ private:
     TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& Units, const FTransform& BaseTransform);
     void SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnections, TMap<FGuid, FBuiltThing>& SpawnedActors);
     void SpawnWires(const TArray<FWireConnection>& WireConnections, const TMap<FGuid, FBuiltThing>& SpawnedActors);
+    void SpawnPipes(const TArray<FConnectionWithSocket>& PipeConnections, TMap<FGuid, FBuiltThing>& SpawnedActors);
 
 private:
     UWorld* World;

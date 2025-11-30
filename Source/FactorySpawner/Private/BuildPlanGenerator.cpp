@@ -49,6 +49,8 @@ namespace
     {
         FConnArrayQueue Input;
         FConnArrayQueue Output;
+        FConnArrayQueue PipeInput;
+        FConnArrayQueue PipeOutput;
     };
 
     // Machine configuration map
@@ -57,7 +59,7 @@ namespace
         {EBuildable::Smelter, {{500, 900, 800, -500, {{0, 0}}, {{1, 0}}}}},
         {EBuildable::Foundry, {{1000, 1100, 800, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
         {EBuildable::Assembler, {{900, 1400, 1100, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
-        {EBuildable::OilRefinery, {{1000, 1900, 1500, -1100, {{0, -200}}, {{1, -200}}, {{1, 200}}, {{0, 200}}}}},
+        {EBuildable::OilRefinery, {{1000, 2000, 2000, -1100, {{0, -200}}, {{1, -200}}, {{1, 200}}, {{0, 200}}}}},
         {EBuildable::Manufacturer,
          {{1800, 2300, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
           {1800, 2000, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
@@ -84,6 +86,11 @@ namespace
     inline void AddBelt(FBuildPlan& Plan, const FGuid& FromUnit, int32 FromSocket, const FGuid& ToUnit, int32 ToSocket)
     {
         Plan.BeltConnections.Add({FromUnit, FromSocket, ToUnit, ToSocket});
+    }
+
+    inline void AddPipe(FBuildPlan& Plan, const FGuid& FromUnit, int32 FromSocket, const FGuid& ToUnit, int32 ToSocket)
+    {
+        Plan.PipeConnections.Add({FromUnit, FromSocket, ToUnit, ToSocket});
     }
 
     // ---------- main per-machine setup ----------
@@ -200,7 +207,62 @@ namespace
             // connect machine output -> merger
             AddBelt(BuildPlan, MachineId, Conn.Index, MergerId, 2);
         }
+
+        // Input pipes
+        int32 PipeHeightOffset = 0;
+        for (const FConnector& Conn : MachineConfig.PipeInput)
+        {
+            FGuid PipeCrossId = FGuid::NewGuid();
+            const FVector PipeCrossLocation =
+                MachineLocation +
+                FVector((float) Conn.LocationX, -MachineConfig.LengthFront + 200.0f, 175.0f + (float) PipeHeightOffset);
+            AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
+
+            // connect previous item -> pipe cross (if present)
+            if (!bFirstUnitInRow)
+            {
+                FBeltConnector Prev;
+                if (ConnectionQueue.PipeInput.Dequeue(Prev))
+                {
+                    AddPipe(BuildPlan, Prev.UnitId, Prev.SocketNumber, PipeCrossId, 3);
+                }
+            }
+
+            // enqueue this pipe cross for future machines
+            ConnectionQueue.PipeInput.Enqueue({PipeCrossId, 0});
+
+            // connect pipe cross -> machine input socket
+            AddPipe(BuildPlan, PipeCrossId, 1, MachineId, Conn.Index);
+
+            PipeHeightOffset += 200;
+        }
+
+        // Output pipes
+        for (const FConnector& Conn : MachineConfig.PipeOutput)
+        {
+            FGuid PipeCrossId = FGuid::NewGuid();
+            const FVector PipeCrossLocation =
+                MachineLocation + FVector((float) Conn.LocationX, (float) MachineConfig.LengthBehind - 200.0f, 175.0f);
+            AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
+
+            // connect pipe cross -> previously enqueued output (if present)
+            if (!bFirstUnitInRow)
+            {
+                FBeltConnector Prev;
+                if (ConnectionQueue.PipeOutput.Dequeue(Prev))
+                {
+                    AddPipe(BuildPlan, PipeCrossId, 3, Prev.UnitId, Prev.SocketNumber);
+                }
+            }
+
+            // enqueue this pipe cross for future row's machines
+            ConnectionQueue.PipeOutput.Enqueue({PipeCrossId, 0});
+
+            // connect machine output -> pipe cross
+            AddPipe(BuildPlan, MachineId, Conn.Index, PipeCrossId, 2);
+        }
     }
+
 } // namespace
 
 FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache) : World(InWorld), Cache(InCache)

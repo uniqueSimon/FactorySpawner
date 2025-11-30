@@ -71,13 +71,13 @@ namespace
         const FVector ToLoc = To->GetComponentLocation();
         const FVector TangentWorld = From->GetConnectorNormal() * FVector::Distance(FromLoc, ToLoc) * 1.5f;
 
-        // Spawn the initial belt
+        // Spawn the initial belt using the test helper
         AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(BeltClass, From, To);
         AFGBuildableConveyorBelt* Belt = Cast<AFGBuildableConveyorBelt>(Spawned);
         if (!Belt)
             return;
 
-        // Respline expects spline point data in the belt's local space. Convert world positions/tangents.
+        // Convert world-space positions/tangents into belt local space before resplining
         const FTransform BeltTransform = Belt->GetActorTransform();
         const FVector LocalFrom = BeltTransform.InverseTransformPosition(FromLoc);
         const FVector LocalTo = BeltTransform.InverseTransformPosition(ToLoc);
@@ -87,24 +87,16 @@ namespace
         SplinePoints.Add(FSplinePointData(LocalFrom, LocalTangent));
         SplinePoints.Add(FSplinePointData(LocalTo, LocalTangent));
 
-        // Respline may return a new belt instance (or nullptr on failure). Capture and use the result.
-        AFGBuildableConveyorBelt* ResultBelt = AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
-        AFGBuildableConveyorBelt* FinalBelt = ResultBelt ? ResultBelt : Belt;
-        if (!FinalBelt)
+        AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
+    }
+
+    void ConnectPipe(TSubclassOf<AFGBuildablePipeline> PipeClass, UFGPipeConnectionComponent* From,
+                     UFGPipeConnectionComponent* To)
+    {
+        if (!PipeClass || !From || !To)
             return;
 
-        // Reconnect belt spline endpoints to the provided From/To connection components in case Respline created a new actor
-        UFGConnectionComponent* BeltConn0 = FinalBelt->GetSplineConnection0();
-        UFGConnectionComponent* BeltConn1 = FinalBelt->GetSplineConnection1();
-
-        if (BeltConn0 && From)
-        {
-            UFGTestBlueprintFunctionLibrary::MakeConnectionBetweenComponents(BeltConn0, static_cast<UFGConnectionComponent*>(From));
-        }
-        if (BeltConn1 && To)
-        {
-            UFGTestBlueprintFunctionLibrary::MakeConnectionBetweenComponents(BeltConn1, static_cast<UFGConnectionComponent*>(To));
-        }
+        UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(PipeClass, From, To);
     }
 } // namespace
 
@@ -130,51 +122,7 @@ void FClusterSpawner::SpawnBuildPlan(const FBuildPlan& Plan, const FTransform& B
     TMap<FGuid, FBuiltThing> Spawned = SpawnBuildables(Plan.BuildableUnits, BaseTransform);
     SpawnWires(Plan.WireConnections, Spawned);
     SpawnBelts(Plan.BeltConnections, Spawned);
-
-    // Test!!!!!!!!!!!!!!!!!!!
-
-    // Refinery
-    const FTransform RefineryTransform = MoveTransform(BaseTransform, FVector(-1600, 0, 0), true);
-    TSubclassOf<AFGBuildableManufacturer> RefineryClass =
-        Cache->GetBuildableClass<AFGBuildableManufacturer>(EBuildable::OilRefinery);
-
-    AFGBuildable* RefinerySpawned = World->SpawnActor<AFGBuildable>(RefineryClass, RefineryTransform);
-    TArray<UFGPipeConnectionComponent*> RefineryConnections;
-    RefinerySpawned->GetComponents<UFGPipeConnectionComponent>(RefineryConnections);
-
-    // Pipe cross
-    const FTransform CrossTransform = MoveTransform(BaseTransform, FVector(-1600 + 200, -1600, 100));
-    TSubclassOf<AFGBuildablePipelineJunction> CrossClass =
-        Cache->GetBuildableClass<AFGBuildablePipelineJunction>(EBuildable::PipeCross);
-
-    AFGBuildable* CrossSpawned = World->SpawnActor<AFGBuildable>(CrossClass, CrossTransform);
-    TArray<UFGPipeConnectionComponent*> PipeConnections;
-    CrossSpawned->GetComponents<UFGPipeConnectionComponent>(PipeConnections);
-
-    // Pipe connection
-    UFGPipeConnectionComponent* RefineryInput = RefineryConnections[1];
-    UFGPipeConnectionComponent* PipeCrossOutput = PipeConnections[1];
-
-    TSubclassOf<AFGBuildablePipeline> PipeClass = Cache->GetBuildableClass<AFGBuildablePipeline>(EBuildable::Pipeline);
-
-    UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(PipeClass, PipeCrossOutput, RefineryInput);
-
-    // AFGBuildablePipeline* SpawnedPipeline = World->SpawnActor<AFGBuildablePipeline>(PipeClass);
-    // UFGPipeConnectionComponentBase* PipeFrom = SpawnedPipeline->GetConnection0();
-    // UFGPipeConnectionComponentBase* PipeTo = SpawnedPipeline->GetConnection1();
-
-    // UE_LOG(LogFactorySpawner, Warning, TEXT("SpawnedPipeline=%p PipeFrom=%p PipeTo=%p"), SpawnedPipeline, PipeFrom,
-    //        PipeTo);
-
-    // UE_LOG(LogFactorySpawner, Warning, TEXT("PipeCrossOutput=%s RefineryInput=%s"), *GetNameSafe(PipeCrossOutput),
-    //        *GetNameSafe(RefineryInput));
-
-    // const FVector FromLoc = RefineryInput ? RefineryInput->GetConnectorLocation(true) : FVector::ZeroVector;
-    // const FVector ToLoc = PipeCrossOutput ? PipeCrossOutput->GetConnectorLocation(true) : FVector::ZeroVector;
-    // UE_LOG(LogFactorySpawner, Warning, TEXT("FromLoc=%s ToLoc=%s"), *FromLoc.ToString(), *ToLoc.ToString());
-
-    // PipeCrossOutput->SetConnection(PipeFrom);
-    // RefineryInput->SetConnection(PipeTo);
+    SpawnPipes(Plan.PipeConnections, Spawned);
 }
 
 TMap<FGuid, FBuiltThing> FClusterSpawner::SpawnBuildables(const TArray<FBuildableUnit>& Units,
@@ -231,7 +179,8 @@ TMap<FGuid, FBuiltThing> FClusterSpawner::SpawnBuildables(const TArray<FBuildabl
         {
             // Non-machine buildables
             TSubclassOf<AFGBuildable> Class = Cache->GetBuildableClass<AFGBuildable>(Unit.Buildable);
-            Spawned = World->SpawnActor<AFGBuildable>(Class, UnitTransform);
+            if (Class)
+                Spawned = World->SpawnActor<AFGBuildable>(Class, UnitTransform);
         }
 
         if (Spawned)
@@ -255,7 +204,7 @@ void FClusterSpawner::SpawnWires(const TArray<FWireConnection>& WireConnections,
         if (!From || !To)
             continue;
 
-        auto Resolve = [](const FBuiltThing& Thing)
+        auto Resolve = [](const FBuiltThing& Thing) -> UFGPowerConnectionComponent*
         {
             if (Thing.Buildable <= LastMachineType)
                 return GetPowerConnection(Thing.Spawned);
@@ -263,7 +212,7 @@ void FClusterSpawner::SpawnWires(const TArray<FWireConnection>& WireConnections,
             if (auto* Pole = Cast<AFGBuildablePowerPole>(Thing.Spawned))
                 return Pole->GetPowerConnection(0);
 
-            return static_cast<UFGPowerConnectionComponent*>(nullptr);
+            return nullptr;
         };
 
         ConnectWire(World, WireClass, Resolve(*From), Resolve(*To));
@@ -292,5 +241,29 @@ void FClusterSpawner::SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnec
             continue;
 
         ConnectBelt(BeltClass, FromConns[Belt.FromSocket], ToConns[Belt.ToSocket]);
+    }
+}
+
+void FClusterSpawner::SpawnPipes(const TArray<FConnectionWithSocket>& PipeConnections,
+                                 TMap<FGuid, FBuiltThing>& SpawnedActors)
+{
+    TSubclassOf<AFGBuildablePipeline> PipeClass = Cache->GetBuildableClass<AFGBuildablePipeline>(EBuildable::Pipeline);
+
+    for (const FConnectionWithSocket& P : PipeConnections)
+    {
+        AFGBuildable* From = SpawnedActors.FindRef(P.FromUnit).Spawned;
+        AFGBuildable* To = SpawnedActors.FindRef(P.ToUnit).Spawned;
+        if (!From || !To)
+            continue;
+
+        TArray<UFGPipeConnectionComponent*> FromConns;
+        From->GetComponents<UFGPipeConnectionComponent>(FromConns);
+        TArray<UFGPipeConnectionComponent*> ToConns;
+        To->GetComponents<UFGPipeConnectionComponent>(ToConns);
+
+        if (!FromConns.IsValidIndex(P.FromSocket) || !ToConns.IsValidIndex(P.ToSocket))
+            continue;
+
+        ConnectPipe(PipeClass, FromConns[P.FromSocket], ToConns[P.ToSocket]);
     }
 }
