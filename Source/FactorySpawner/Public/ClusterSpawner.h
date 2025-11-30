@@ -22,7 +22,7 @@ public:
 private:
     /** Internal helpers */
     TMap<FGuid, FBuiltThing> SpawnBuildables(const TArray<FBuildableUnit>& Units, const FTransform& BaseTransform);
-    void SpawnBelts(const TArray<FBeltConnection>& BeltConnections, TMap<FGuid, FBuiltThing>& SpawnedActors);
+    void SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnections, TMap<FGuid, FBuiltThing>& SpawnedActors);
     void SpawnWires(const TArray<FWireConnection>& WireConnections, const TMap<FGuid, FBuiltThing>& SpawnedActors);
 
 private:

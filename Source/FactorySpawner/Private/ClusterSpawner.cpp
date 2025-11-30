@@ -64,18 +64,47 @@ namespace
     void ConnectBelt(TSubclassOf<AFGBuildableConveyorBelt> BeltClass, UFGFactoryConnectionComponent* From,
                      UFGFactoryConnectionComponent* To)
     {
+        if (!BeltClass || !From || !To)
+            return;
+
         const FVector FromLoc = From->GetComponentLocation();
         const FVector ToLoc = To->GetComponentLocation();
-        const FVector Tangent = From->GetConnectorNormal() * FVector::Distance(FromLoc, ToLoc) * 1.5f;
+        const FVector TangentWorld = From->GetConnectorNormal() * FVector::Distance(FromLoc, ToLoc) * 1.5f;
+
+        // Spawn the initial belt
+        AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(BeltClass, From, To);
+        AFGBuildableConveyorBelt* Belt = Cast<AFGBuildableConveyorBelt>(Spawned);
+        if (!Belt)
+            return;
+
+        // Respline expects spline point data in the belt's local space. Convert world positions/tangents.
+        const FTransform BeltTransform = Belt->GetActorTransform();
+        const FVector LocalFrom = BeltTransform.InverseTransformPosition(FromLoc);
+        const FVector LocalTo = BeltTransform.InverseTransformPosition(ToLoc);
+        const FVector LocalTangent = BeltTransform.InverseTransformVectorNoScale(TangentWorld);
 
         TArray<FSplinePointData> SplinePoints;
-        SplinePoints.Add(FSplinePointData(FromLoc, Tangent));
-        SplinePoints.Add(FSplinePointData(ToLoc, Tangent));
+        SplinePoints.Add(FSplinePointData(LocalFrom, LocalTangent));
+        SplinePoints.Add(FSplinePointData(LocalTo, LocalTangent));
 
-        AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(BeltClass, From, To);
-        AFGBuildableConveyorBelt* Belt = static_cast<AFGBuildableConveyorBelt*>(Spawned);
+        // Respline may return a new belt instance (or nullptr on failure). Capture and use the result.
+        AFGBuildableConveyorBelt* ResultBelt = AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
+        AFGBuildableConveyorBelt* FinalBelt = ResultBelt ? ResultBelt : Belt;
+        if (!FinalBelt)
+            return;
 
-        AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
+        // Reconnect belt spline endpoints to the provided From/To connection components in case Respline created a new actor
+        UFGConnectionComponent* BeltConn0 = FinalBelt->GetSplineConnection0();
+        UFGConnectionComponent* BeltConn1 = FinalBelt->GetSplineConnection1();
+
+        if (BeltConn0 && From)
+        {
+            UFGTestBlueprintFunctionLibrary::MakeConnectionBetweenComponents(BeltConn0, static_cast<UFGConnectionComponent*>(From));
+        }
+        if (BeltConn1 && To)
+        {
+            UFGTestBlueprintFunctionLibrary::MakeConnectionBetweenComponents(BeltConn1, static_cast<UFGConnectionComponent*>(To));
+        }
     }
 } // namespace
 
@@ -241,7 +270,7 @@ void FClusterSpawner::SpawnWires(const TArray<FWireConnection>& WireConnections,
     }
 }
 
-void FClusterSpawner::SpawnBelts(const TArray<FBeltConnection>& BeltConnections,
+void FClusterSpawner::SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnections,
                                  TMap<FGuid, FBuiltThing>& SpawnedActors)
 {
     TSubclassOf<AFGBuildableConveyorBelt> BeltClass =
@@ -249,7 +278,7 @@ void FClusterSpawner::SpawnBelts(const TArray<FBeltConnection>& BeltConnections,
     if (!BeltClass)
         return;
 
-    for (const FBeltConnection& Belt : BeltConnections)
+    for (const FConnectionWithSocket& Belt : BeltConnections)
     {
         AFGBuildable* From = SpawnedActors.FindRef(Belt.FromUnit).Spawned;
         AFGBuildable* To = SpawnedActors.FindRef(Belt.ToUnit).Spawned;

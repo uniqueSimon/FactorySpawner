@@ -53,7 +53,7 @@ struct FWireConnection
     FGuid ToUnit;
 };
 
-struct FBeltConnection
+struct FConnectionWithSocket
 {
     FGuid FromUnit;
     int32 FromSocket;
@@ -64,6 +64,7 @@ struct FBeltConnection
 struct FBuildPlan
 {
     TArray<FBuildableUnit> BuildableUnits;
-    TArray<FBeltConnection> BeltConnections;
     TArray<FWireConnection> WireConnections;
+    TArray<FConnectionWithSocket> BeltConnections;
+    TArray<FConnectionWithSocket> PipeConnections;
 };
