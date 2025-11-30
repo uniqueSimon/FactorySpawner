@@ -11,11 +11,14 @@ enum class EBuildable : uint8
     Assembler,
     Foundry,
     Manufacturer,
+    OilRefinery,
 
     // Utility
     Splitter,
     Merger,
     PowerPole,
+    Pipeline,
+    PipeCross,
 
     // Transport
     Belt,
@@ -24,6 +27,8 @@ enum class EBuildable : uint8
 
     Invalid
 };
+
+EBuildable LastMachineType = EBuildable::OilRefinery;
 
 struct FFactoryCommandToken
 {

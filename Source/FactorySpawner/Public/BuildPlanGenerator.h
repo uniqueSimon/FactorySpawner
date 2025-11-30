@@ -26,6 +26,8 @@ struct FMachineConfig
     int32 PowerPoleY = 0;
     TArray<FConnector> Input;
     TArray<FConnector> Output;
+    TArray<FConnector> PipeInput;
+    TArray<FConnector> PipeOutput;
 };
 
 class FBuildPlanGenerator

@@ -51,15 +51,16 @@ namespace
         FConnArrayQueue Output;
     };
 
-    // Machine configuration map (static to avoid repeated construction)
+    // Machine configuration map
     static const TMap<EBuildable, TArray<FMachineConfig>> MachineConfigList = {
-        {EBuildable::Constructor, {FMachineConfig{800, 500 + 400, 500 + 400, -500, {{1, 0}}, {{0, 0}}}}},
-        {EBuildable::Smelter, {FMachineConfig{500, 500 + 400, 400 + 400, -500, {{0, 0}}, {{1, 0}}}}},
-        {EBuildable::Foundry, {FMachineConfig{1000, 700 + 400, 400 + 400, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
-        {EBuildable::Assembler, {FMachineConfig{900, 1000 + 400, 700 + 400, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
+        {EBuildable::Constructor, {{800, 900, 900, -500, {{1, 0}}, {{0, 0}}}}},
+        {EBuildable::Smelter, {{500, 900, 800, -500, {{0, 0}}, {{1, 0}}}}},
+        {EBuildable::Foundry, {{1000, 1100, 800, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
+        {EBuildable::Assembler, {{900, 1400, 1100, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
+        {EBuildable::OilRefinery, {{1000, 1900, 1500, -1100, {{0, -200}}, {{1, -200}}, {{1, 200}}, {{0, 200}}}}},
         {EBuildable::Manufacturer,
-         {FMachineConfig{1800, 1900 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
-          FMachineConfig{1800, 1600 + 400, 900 + 400, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
+         {{1800, 2300, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
+          {1800, 2000, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
 
     // ---------- helpers to add units/connections ----------
     inline void AddBuildableUnit(FBuildPlan& Plan, const FGuid& Id, EBuildable Type, const FVector& Location,

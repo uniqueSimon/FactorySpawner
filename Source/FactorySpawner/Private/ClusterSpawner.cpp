@@ -10,6 +10,11 @@
 #include "FGRecipeManager.h"
 #include "FGPlayerController.h"
 #include "FGCharacterPlayer.h"
+#include "FGBuildablePipelineJunction.h"
+#include "FGPipeConnectionComponent.h"
+#include "FGBuildablePipeline.h"
+#include "Kismet/GameplayStatics.h"
+#include "FGTestBlueprintFunctionLibrary.h"
 
 // ------------------------------------------------------------
 //                  Local Utility Functions
@@ -56,12 +61,9 @@ namespace
         }
     }
 
-    void ConnectBelt(AFGBuildableConveyorBelt* Belt, UFGFactoryConnectionComponent* From,
+    void ConnectBelt(TSubclassOf<AFGBuildableConveyorBelt> BeltClass, UFGFactoryConnectionComponent* From,
                      UFGFactoryConnectionComponent* To)
     {
-        if (!Belt || !From || !To)
-            return;
-
         const FVector FromLoc = From->GetComponentLocation();
         const FVector ToLoc = To->GetComponentLocation();
         const FVector Tangent = From->GetConnectorNormal() * FVector::Distance(FromLoc, ToLoc) * 1.5f;
@@ -70,8 +72,8 @@ namespace
         SplinePoints.Add(FSplinePointData(FromLoc, Tangent));
         SplinePoints.Add(FSplinePointData(ToLoc, Tangent));
 
-        From->SetConnection(Belt->GetConnection0());
-        To->SetConnection(Belt->GetConnection1());
+        AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(BeltClass, From, To);
+        AFGBuildableConveyorBelt* Belt = static_cast<AFGBuildableConveyorBelt*>(Spawned);
 
         AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
     }
@@ -99,6 +101,51 @@ void FClusterSpawner::SpawnBuildPlan(const FBuildPlan& Plan, const FTransform& B
     TMap<FGuid, FBuiltThing> Spawned = SpawnBuildables(Plan.BuildableUnits, BaseTransform);
     SpawnWires(Plan.WireConnections, Spawned);
     SpawnBelts(Plan.BeltConnections, Spawned);
+
+    // Test!!!!!!!!!!!!!!!!!!!
+
+    // Refinery
+    const FTransform RefineryTransform = MoveTransform(BaseTransform, FVector(-1600, 0, 0), true);
+    TSubclassOf<AFGBuildableManufacturer> RefineryClass =
+        Cache->GetBuildableClass<AFGBuildableManufacturer>(EBuildable::OilRefinery);
+
+    AFGBuildable* RefinerySpawned = World->SpawnActor<AFGBuildable>(RefineryClass, RefineryTransform);
+    TArray<UFGPipeConnectionComponent*> RefineryConnections;
+    RefinerySpawned->GetComponents<UFGPipeConnectionComponent>(RefineryConnections);
+
+    // Pipe cross
+    const FTransform CrossTransform = MoveTransform(BaseTransform, FVector(-1600 + 200, -1600, 100));
+    TSubclassOf<AFGBuildablePipelineJunction> CrossClass =
+        Cache->GetBuildableClass<AFGBuildablePipelineJunction>(EBuildable::PipeCross);
+
+    AFGBuildable* CrossSpawned = World->SpawnActor<AFGBuildable>(CrossClass, CrossTransform);
+    TArray<UFGPipeConnectionComponent*> PipeConnections;
+    CrossSpawned->GetComponents<UFGPipeConnectionComponent>(PipeConnections);
+
+    // Pipe connection
+    UFGPipeConnectionComponent* RefineryInput = RefineryConnections[1];
+    UFGPipeConnectionComponent* PipeCrossOutput = PipeConnections[1];
+
+    TSubclassOf<AFGBuildablePipeline> PipeClass = Cache->GetBuildableClass<AFGBuildablePipeline>(EBuildable::Pipeline);
+
+    UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(PipeClass, PipeCrossOutput, RefineryInput);
+
+    // AFGBuildablePipeline* SpawnedPipeline = World->SpawnActor<AFGBuildablePipeline>(PipeClass);
+    // UFGPipeConnectionComponentBase* PipeFrom = SpawnedPipeline->GetConnection0();
+    // UFGPipeConnectionComponentBase* PipeTo = SpawnedPipeline->GetConnection1();
+
+    // UE_LOG(LogFactorySpawner, Warning, TEXT("SpawnedPipeline=%p PipeFrom=%p PipeTo=%p"), SpawnedPipeline, PipeFrom,
+    //        PipeTo);
+
+    // UE_LOG(LogFactorySpawner, Warning, TEXT("PipeCrossOutput=%s RefineryInput=%s"), *GetNameSafe(PipeCrossOutput),
+    //        *GetNameSafe(RefineryInput));
+
+    // const FVector FromLoc = RefineryInput ? RefineryInput->GetConnectorLocation(true) : FVector::ZeroVector;
+    // const FVector ToLoc = PipeCrossOutput ? PipeCrossOutput->GetConnectorLocation(true) : FVector::ZeroVector;
+    // UE_LOG(LogFactorySpawner, Warning, TEXT("FromLoc=%s ToLoc=%s"), *FromLoc.ToString(), *ToLoc.ToString());
+
+    // PipeCrossOutput->SetConnection(PipeFrom);
+    // RefineryInput->SetConnection(PipeTo);
 }
 
 TMap<FGuid, FBuiltThing> FClusterSpawner::SpawnBuildables(const TArray<FBuildableUnit>& Units,
@@ -117,12 +164,13 @@ TMap<FGuid, FBuiltThing> FClusterSpawner::SpawnBuildables(const TArray<FBuildabl
 
     for (const FBuildableUnit& Unit : Units)
     {
-        const bool bFlip = Unit.Buildable == EBuildable::Merger;
+        // Decide flip for certain buildables
+        const bool bFlip = Unit.Buildable == EBuildable::Merger || Unit.Buildable == EBuildable::OilRefinery;
         const FTransform UnitTransform = MoveTransform(BaseTransform, Unit.Location, bFlip);
 
         AFGBuildable* Spawned = nullptr;
 
-        if (Unit.Buildable <= EBuildable::Manufacturer)
+        if (Unit.Buildable <= LastMachineType)
         {
             // Machine types
             TSubclassOf<AFGBuildableManufacturer> MachineClass =
@@ -180,7 +228,7 @@ void FClusterSpawner::SpawnWires(const TArray<FWireConnection>& WireConnections,
 
         auto Resolve = [](const FBuiltThing& Thing)
         {
-            if (Thing.Buildable <= EBuildable::Manufacturer)
+            if (Thing.Buildable <= LastMachineType)
                 return GetPowerConnection(Thing.Spawned);
 
             if (auto* Pole = Cast<AFGBuildablePowerPole>(Thing.Spawned))
@@ -214,9 +262,6 @@ void FClusterSpawner::SpawnBelts(const TArray<FBeltConnection>& BeltConnections,
         if (!FromConns.IsValidIndex(Belt.FromSocket) || !ToConns.IsValidIndex(Belt.ToSocket))
             continue;
 
-        if (AFGBuildableConveyorBelt* NewBelt = World->SpawnActor<AFGBuildableConveyorBelt>(BeltClass))
-        {
-            ConnectBelt(NewBelt, FromConns[Belt.FromSocket], ToConns[Belt.ToSocket]);
-        }
+        ConnectBelt(BeltClass, FromConns[Belt.FromSocket], ToConns[Belt.ToSocket]);
     }
 }
