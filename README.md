@@ -1,6 +1,8 @@
 # Factory Spawner
 https://ficsit.app/mod/FactorySpawner
 
+## Version 1.1.0 is out with added Refinery, Blender and Pipings
+
 **Factory Spawner** takes the hassle out of manually placing and wiring every machine.  
 Simply tell it what you want to produce and how many machines you need, and it will:
 
@@ -29,7 +31,7 @@ Open the chat and type:
 (without curly braces)
 
 - **number** → Number of machines in a row
-- **machine type** → Smelter, Constructor, Assembler, Foundry, or Manufacturer
+- **machine type** → Smelter, Constructor, Assembler, Foundry, Manufacturer, Refinery or Blender
 - **recipe** (optional) → e.g. IngotIron, IronPlate, Motor, Computer
 - **underclock** (optional) → The clock speed of each machine in the row (Value in %: 0 - 100)
 
@@ -88,10 +90,6 @@ All placed buildables are just **vanilla ones**, so you can safely uninstall the
 - Add all remaining machines
 - Add conveyor lifts (Have to find out how to spawn them properly)
 - Improve preview hologram
-
-## Known issues
-- The schematic can be unlocked before splitter and merger. In that case those are not added to the cost calculation. I should add that dependency.
-- You can spawn machines that have not yet been unlocked, like manufacturers.
 
 ## Feedback on Discord
 
