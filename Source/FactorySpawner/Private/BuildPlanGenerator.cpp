@@ -54,15 +54,38 @@ namespace
     };
 
     // Machine configuration map
-    static const TMap<EBuildable, TArray<FMachineConfig>> MachineConfigList = {
-        {EBuildable::Constructor, {{800, 900, 900, -500, {{1, 0}}, {{0, 0}}}}},
-        {EBuildable::Smelter, {{500, 900, 800, -500, {{0, 0}}, {{1, 0}}}}},
-        {EBuildable::Foundry, {{1000, 1100, 800, -500, {{2, -200}, {0, 200}}, {{1, -200}}}}},
-        {EBuildable::Assembler, {{900, 1400, 1100, -900, {{1, -200}, {2, 200}}, {{0, 0}}}}},
-        {EBuildable::OilRefinery, {{1000, 2000, 2000, -1100, {{0, -200}}, {{1, -200}}, {{1, 200}}, {{0, 200}}}}},
+    static const TMap<EBuildable, FMachineConfig> MachineConfigList = {
+        {EBuildable::Constructor,
+         FMachineConfig{800,
+                        /* InputConnections */ {FMachineConnections{900, {{FConnector{1, 0}}}, {}}},
+                        /* OutputConnections */ {FMachineConnections{900, {{FConnector{0, 0}}}, {}}}}},
+        {EBuildable::Smelter, FMachineConfig{500,
+                                             {FMachineConnections{900, {{FConnector{0, 0}}}, {}}},
+                                             {FMachineConnections{800, {{FConnector{1, 0}}}, {}}}}},
+        {EBuildable::Foundry,
+         FMachineConfig{1000,
+                        {FMachineConnections{1100, {{FConnector{2, -200}}, {FConnector{0, 200}}}, {}}},
+                        {FMachineConnections{800, {{FConnector{1, -200}}}, {}}}}},
+        {EBuildable::Assembler,
+         FMachineConfig{900,
+                        {FMachineConnections{1400, {{FConnector{1, -200}}, {FConnector{2, 200}}}, {}}},
+                        {FMachineConnections{1100, {{FConnector{0, 0}}}, {}}}}},
+        {EBuildable::OilRefinery,
+         FMachineConfig{1000,
+                        {FMachineConnections{2000, {{FConnector{0, -200}}}, {FConnector{1, 200}}},
+                         FMachineConnections{1500, {}, {FConnector{1, 200}}},
+                         FMachineConnections{1500, {{FConnector{0, -200}}}, {}}},
+                        {FMachineConnections{2000, {{FConnector{1, -200}}}, {FConnector{0, 200}}},
+                         FMachineConnections{2000, {{FConnector{1, -200}}}, {}},
+                         FMachineConnections{2000, {}, {FConnector{0, 200}}}}}},
         {EBuildable::Manufacturer,
-         {{1800, 2300, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}, {0, 600}}, {{3, 0}}},
-          {1800, 2000, 1300, -1100, {{4, -600}, {2, -200}, {1, 200}}, {{3, 0}}}}}};
+         FMachineConfig{
+             1800,
+             {FMachineConnections{
+                  2300, {{FConnector{4, -600}}, {FConnector{2, -200}}, {FConnector{1, 200}}, {FConnector{0, 600}}}, {}},
+              FMachineConnections{2000, {{FConnector{4, -600}}, {FConnector{2, -200}}, {FConnector{1, 200}}}, {}}},
+             {FMachineConnections{1300, {{FConnector{3, 0}}}, {}}}}},
+    };
 
     // ---------- helpers to add units/connections ----------
     inline void AddBuildableUnit(FBuildPlan& Plan, const FGuid& Id, EBuildable Type, const FVector& Location,
@@ -95,8 +118,9 @@ namespace
 
     // ---------- main per-machine setup ----------
     void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, const TOptional<FString>& Recipe,
-                               const TOptional<float>& Underclock, int32 XCursor, int32 YCursor,
-                               const FMachineConfig& MachineConfig, FConnectionQueue& ConnectionQueue,
+                               const TOptional<float>& Underclock, int32 XCursor, int32 YCursor, int32 Width,
+                               const FMachineConnections& InputConnections,
+                               const FMachineConnections& OutputConnections, FConnectionQueue& ConnectionQueue,
                                FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex,
                                bool bLastIndex)
     {
@@ -125,8 +149,7 @@ namespace
         {
             // place a power pole between machines
             FGuid PowerPoleId = FGuid::NewGuid();
-            const FVector PowerPoleRel =
-                FVector(-(MachineConfig.Width / 2.0f), -(MachineConfig.LengthFront / 2.0f), 0.0f);
+            const FVector PowerPoleRel = FVector(-(Width / 2.0f), -(InputConnections.Length / 2.0f), 0.0f);
             AddBuildableUnit(BuildPlan, PowerPoleId, EBuildable::PowerPole, MachineLocation + PowerPoleRel);
 
             // connect pole -> machine
@@ -156,12 +179,12 @@ namespace
 
         // Input splitters and belt wiring
         int32 HeightOffset = 0;
-        for (const FConnector& Conn : MachineConfig.Input)
+        for (const FConnector& Conn : InputConnections.Belt)
         {
             FGuid SplitterId = FGuid::NewGuid();
             const FVector SplitterLocation =
                 MachineLocation +
-                FVector((float) Conn.LocationX, -MachineConfig.LengthFront + 200.0f, 100.0f + (float) HeightOffset);
+                FVector((float) Conn.LocationX, -InputConnections.Length + 200.0f, 100.0f + (float) HeightOffset);
             AddBuildableUnit(BuildPlan, SplitterId, EBuildable::Splitter, SplitterLocation);
 
             // connect previous item -> splitter (if present)
@@ -184,11 +207,11 @@ namespace
         }
 
         // Output mergers and belt wiring
-        for (const FConnector& Conn : MachineConfig.Output)
+        for (const FConnector& Conn : OutputConnections.Belt)
         {
             FGuid MergerId = FGuid::NewGuid();
             const FVector MergerLocation =
-                MachineLocation + FVector((float) Conn.LocationX, (float) MachineConfig.LengthBehind - 200.0f, 100.0f);
+                MachineLocation + FVector((float) Conn.LocationX, (float) OutputConnections.Length - 200.0f, 100.0f);
             AddBuildableUnit(BuildPlan, MergerId, EBuildable::Merger, MergerLocation);
 
             // connect merger -> previously enqueued output (if present)
@@ -210,12 +233,12 @@ namespace
 
         // Input pipes
         int32 PipeHeightOffset = 0;
-        for (const FConnector& Conn : MachineConfig.PipeInput)
+        for (const FConnector& Conn : InputConnections.Pipe)
         {
             FGuid PipeCrossId = FGuid::NewGuid();
             const FVector PipeCrossLocation =
                 MachineLocation +
-                FVector((float) Conn.LocationX, -MachineConfig.LengthFront + 200.0f, 175.0f + (float) PipeHeightOffset);
+                FVector((float) Conn.LocationX, -InputConnections.Length + 200.0f, 175.0f + (float) PipeHeightOffset);
             AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
 
             // connect previous item -> pipe cross (if present)
@@ -238,11 +261,11 @@ namespace
         }
 
         // Output pipes
-        for (const FConnector& Conn : MachineConfig.PipeOutput)
+        for (const FConnector& Conn : OutputConnections.Pipe)
         {
             FGuid PipeCrossId = FGuid::NewGuid();
             const FVector PipeCrossLocation =
-                MachineLocation + FVector((float) Conn.LocationX, (float) MachineConfig.LengthBehind - 200.0f, 175.0f);
+                MachineLocation + FVector((float) Conn.LocationX, (float) OutputConnections.Length - 200.0f, 175.0f);
             AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
 
             // connect pipe cross -> previously enqueued output (if present)
@@ -287,11 +310,14 @@ FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& Clu
 void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
 {
     // determine variant, recipe, machine config, etc.
-    const EBuildable MachineBuildable = static_cast<EBuildable>(RowConfig.MachineType);
     TSubclassOf<AFGBuildableManufacturer> MachineClass =
-        Cache->GetBuildableClass<AFGBuildableManufacturer>(MachineBuildable);
+        Cache->GetBuildableClass<AFGBuildableManufacturer>(RowConfig.MachineType);
 
-    int32 Variant = 0;
+    int32 InputVariant = 0;
+    int32 OutputVariant = 0;
+
+    const FMachineConfig& MachineConfig = MachineConfigList[RowConfig.MachineType];
+
     if (RowConfig.Recipe.IsSet())
     {
         if (TSubclassOf<UFGRecipe> RecipeClass =
@@ -299,29 +325,32 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
         {
             const int32 InputPorts = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients().Num();
             if (RowConfig.MachineType == EBuildable::Manufacturer && InputPorts == 3)
-                Variant = 1;
+                InputVariant = 1;
         }
     }
 
-    const FMachineConfig& MachineConfig = MachineConfigList[RowConfig.MachineType][Variant];
+    const FMachineConnections InputConnections = MachineConfig.InputConnections[InputVariant];
+    const FMachineConnections OutputConnections = MachineConfig.OutputConnections[OutputVariant];
 
     if (RowIndex == 0)
         FirstMachineWidth = MachineConfig.Width;
     else
     {
-        YCursor += MachineConfig.LengthFront;
+        YCursor += InputConnections.Length;
         XCursor = FMath::CeilToInt((MachineConfig.Width - FirstMachineWidth) / 2.0f / 100) * 100;
     }
 
-    PlaceMachines(RowConfig, RowIndex, MachineConfig);
+    PlaceMachines(RowConfig, MachineConfig.Width, InputConnections, OutputConnections);
 
-    YCursor += MachineConfig.LengthBehind;
+    // advance Y cursor by the machine's output length
+    YCursor += OutputConnections.Length;
     CachedPowerConnections.LastMachine.Invalidate();
     CachedPowerConnections.LastPole.Invalidate();
 }
 
-void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex,
-                                        const FMachineConfig& MachineConfig)
+void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width,
+                                        const FMachineConnections& InputConnections,
+                                        const FMachineConnections& OutputConnections)
 {
     FConnectionQueue ConnectionQueue;
 
@@ -331,10 +360,10 @@ void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, i
         const bool bEvenIndex = (i % 2 == 0);
         const bool bLastIndex = (i == RowConfig.Count - 1);
 
-        CalculateMachineSetup(BuildPlan, static_cast<EBuildable>(RowConfig.MachineType), RowConfig.Recipe,
-                              RowConfig.ClockPercent, XCursor, YCursor, MachineConfig, ConnectionQueue,
+        CalculateMachineSetup(BuildPlan, RowConfig.MachineType, RowConfig.Recipe, RowConfig.ClockPercent, XCursor,
+                              YCursor, Width, InputConnections, OutputConnections, ConnectionQueue,
                               CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
 
-        XCursor += MachineConfig.Width;
+        XCursor += Width;
     }
 }

@@ -18,30 +18,33 @@ struct FConnector
     int32 LocationX = 0;
 };
 
+struct FMachineConnections
+{
+    int32 Length = 0;
+    TArray<FConnector> Belt;
+    TArray<FConnector> Pipe;
+};
+
 struct FMachineConfig
 {
     int32 Width = 0;
-    int32 LengthFront = 0;
-    int32 LengthBehind = 0;
-    int32 PowerPoleY = 0;
-    TArray<FConnector> Input;
-    TArray<FConnector> Output;
-    TArray<FConnector> PipeInput;
-    TArray<FConnector> PipeOutput;
+    TArray<FMachineConnections> InputConnections;
+    TArray<FMachineConnections> OutputConnections;
 };
 
 class FBuildPlanGenerator
 {
-public:
+  public:
     explicit FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache);
 
     FBuildPlan Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
 
-private:
+  private:
     void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex);
-    void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 RowIndex, const FMachineConfig& MachineConfig);
+    void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width, const FMachineConnections& InputConnections,
+                       const FMachineConnections& OutputConnections);
 
-private:
+  private:
     UWorld* World;
     UBuildableCache* Cache;
     FBuildPlan BuildPlan;
