@@ -51,6 +51,7 @@ namespace
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
         {EBuildable::OilRefinery,
          "/Game/FactoryGame/Buildable/Factory/OilRefinery/Build_OilRefinery.Build_OilRefinery_C"},
+        {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"},
         {EBuildable::Lift,
          "/Game/FactoryGame/Buildable/Factory/ConveyorLiftMk1/Build_ConveyorLiftMk1.Build_ConveyorLiftMk1_C"}};
 
@@ -74,6 +75,9 @@ namespace
         {EBuildable::OilRefinery,
          {"/Game/FactoryGame/Buildable/Factory/OilRefinery/Mesh/SM_OilRefinery_01.SM_OilRefinery_01",
           "/Game/FactoryGame/Buildable/Factory/OilRefinery/Mesh/SM_Refinery_VAT_01.SM_Refinery_VAT_01"}},
+        {EBuildable::Blender,
+         {"/Game/FactoryGame/Buildable/Factory/Blender/Mesh/SM_Blender_01.SM_Blender_01",
+          "/Game/FactoryGame/Buildable/Factory/Blender/Mesh/SM_Blender_VAT.SM_Blender_VAT"}},
         {EBuildable::Splitter,
          {"/Game/FactoryGame/Buildable/Factory/CA_Splitter/Mesh/"
           "ConveyorAttachmentSplitter_static.ConveyorAttachmentSplitter_static",

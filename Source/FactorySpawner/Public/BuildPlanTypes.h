@@ -12,6 +12,7 @@ enum class EBuildable : uint8
     Foundry,
     Manufacturer,
     OilRefinery,
+    Blender,
 
     // Utility
     Splitter,

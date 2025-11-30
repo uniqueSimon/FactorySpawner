@@ -17,6 +17,8 @@ static inline EBuildable ParseBuildableFromString(const FString& Input)
         return EBuildable::Manufacturer;
     if (Normalized == "oilrefinery" || Normalized == "refinery")
         return EBuildable::OilRefinery;
+    if (Normalized == "blender")
+        return EBuildable::Blender;
 
     // Optionally handle other buildables or return invalid
     return EBuildable::Invalid;

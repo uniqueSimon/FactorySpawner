@@ -31,11 +31,12 @@ namespace
         return FTransform(NewRot, NewLoc);
     }
 
-    TArray<UFGFactoryConnectionComponent*> GetBeltConnections(AFGBuildable* Buildable)
+    template<typename T>
+    TArray<T*> GetConnections(AFGBuildable* Buildable)
     {
-        TArray<UFGFactoryConnectionComponent*> Out;
+        TArray<T*> Out;
         if (Buildable)
-            Buildable->GetComponents<UFGFactoryConnectionComponent>(Out);
+            Buildable->GetComponents<T>(Out);
         return Out;
     }
 
@@ -234,8 +235,8 @@ void FClusterSpawner::SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnec
         if (!From || !To)
             continue;
 
-        const auto FromConns = GetBeltConnections(From);
-        const auto ToConns = GetBeltConnections(To);
+        const auto FromConns = GetConnections<UFGFactoryConnectionComponent>(From);
+        const auto ToConns = GetConnections<UFGFactoryConnectionComponent>(To);
 
         if (!FromConns.IsValidIndex(Belt.FromSocket) || !ToConns.IsValidIndex(Belt.ToSocket))
             continue;
@@ -256,10 +257,8 @@ void FClusterSpawner::SpawnPipes(const TArray<FConnectionWithSocket>& PipeConnec
         if (!From || !To)
             continue;
 
-        TArray<UFGPipeConnectionComponent*> FromConns;
-        From->GetComponents<UFGPipeConnectionComponent>(FromConns);
-        TArray<UFGPipeConnectionComponent*> ToConns;
-        To->GetComponents<UFGPipeConnectionComponent>(ToConns);
+        const auto FromConns = GetConnections<UFGPipeConnectionComponent>(From);
+        const auto ToConns = GetConnections<UFGPipeConnectionComponent>(To);
 
         if (!FromConns.IsValidIndex(P.FromSocket) || !ToConns.IsValidIndex(P.ToSocket))
             continue;

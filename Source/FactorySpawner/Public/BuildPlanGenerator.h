@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "BuildPlanTypes.h"
+#include <initializer_list>
 
 class UBuildableCache;
 
@@ -32,6 +33,44 @@ struct FMachineConfig
     TArray<FMachineConnections> InputConnections;
     TArray<FMachineConnections> OutputConnections;
 };
+
+// Helper factory functions to make initializers shorter in cpp files.
+inline FConnector MakeConnector(int32 Index, int32 LocationX, int32 LocationY = 0)
+{
+    FConnector C;
+    C.Index = Index;
+    C.LocationX = LocationX;
+    C.LocationY = LocationY;
+    return C;
+}
+
+inline FMachineConnections MakeMachineConnections(
+    int32 Length,
+    std::initializer_list<FConnector> Belt = {},
+    std::initializer_list<FConnector> Pipe = {})
+{
+    FMachineConnections MC;
+    MC.Length = Length;
+    for (const FConnector& c : Belt)
+        MC.Belt.Add(c);
+    for (const FConnector& p : Pipe)
+        MC.Pipe.Add(p);
+    return MC;
+}
+
+inline FMachineConfig MakeMachineConfig(
+    int32 Width,
+    std::initializer_list<FMachineConnections> Inputs = {},
+    std::initializer_list<FMachineConnections> Outputs = {})
+{
+    FMachineConfig Cfg;
+    Cfg.Width = Width;
+    for (const FMachineConnections& m : Inputs)
+        Cfg.InputConnections.Add(m);
+    for (const FMachineConnections& m : Outputs)
+        Cfg.OutputConnections.Add(m);
+    return Cfg;
+}
 
 class FBuildPlanGenerator
 {
