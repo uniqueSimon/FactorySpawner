@@ -29,7 +29,7 @@ enum class EBuildable : uint8
     Invalid
 };
 
-EBuildable LastMachineType = EBuildable::OilRefinery;
+EBuildable LastMachineType = EBuildable::Blender;
 
 struct FFactoryCommandToken
 {

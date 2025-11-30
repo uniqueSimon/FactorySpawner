@@ -74,10 +74,27 @@ namespace
                             MakeMachineConnections(1500, {MakeConnector(1, -200)}, {}),
                             MakeMachineConnections(1500, {}, {MakeConnector(0, 200)})})},
         {EBuildable::Blender,
-         MakeMachineConfig(1800,
-                           {MakeMachineConnections(2500, {MakeConnector(0, 200, 400), MakeConnector(1, 600, 600)},
-                                                   {MakeConnector(0, -600), MakeConnector(1, -200, 200)})},
-                           {MakeMachineConnections(2500, {MakeConnector(2, -200, 400)}, {MakeConnector(2, -600)})})},
+         MakeMachineConfig(
+             1800,
+
+             {/*2S,2L*/ MakeMachineConnections(2400, {MakeConnector(1, 200, 600), MakeConnector(2, 600, 800)},
+                                               {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
+              /*2S,1L*/
+              MakeMachineConnections(2100, {MakeConnector(1, 200, 400), MakeConnector(2, 600, 600)},
+                                     {MakeConnector(2, -600)}),
+              /*1S,2L*/
+              MakeMachineConnections(2100, {MakeConnector(1, 200, 600)},
+                                     {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
+              /*1S,1L*/
+              MakeMachineConnections(1800, {MakeConnector(1, 200, 400)}, {MakeConnector(2, -600)}),
+              /*0S,2L*/
+              MakeMachineConnections(1500, {}, {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
+              /*0S,1L*/
+              MakeMachineConnections(1200, {}, {MakeConnector(2, -600)})},
+
+             {MakeMachineConnections(1800, {MakeConnector(0, -200, 400)}, {MakeConnector(1, -600)}),
+              MakeMachineConnections(1200, {MakeConnector(0, -200)}, {}),
+              MakeMachineConnections(1200, {}, {MakeConnector(1, -600)})})},
         {EBuildable::Manufacturer,
          MakeMachineConfig(1800,
                            {MakeMachineConnections(2300, {MakeConnector(4, -600), MakeConnector(2, -200, 200),
@@ -317,36 +334,62 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
         {
             TArray<FItemAmount> Ingredients = RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients();
             TArray<FItemAmount> Products = RecipeClass->GetDefaultObject<UFGRecipe>()->GetProducts();
-            const int32 InputPorts = Ingredients.Num();
-            const int32 OutputPorts = Products.Num();
-            if (RowConfig.MachineType == EBuildable::Manufacturer && InputPorts == 3)
+
+            // Count solid/liquid inputs and outputs
+            int32 SolidInputs = 0;
+            int32 LiquidInputs = 0;
+            int32 SolidOutputs = 0;
+            int32 LiquidOutputs = 0;
+
+            for (const FItemAmount& IA : Ingredients)
+            {
+                EResourceForm Form = UFGItemDescriptor::GetForm(IA.ItemClass);
+                if (Form == EResourceForm::RF_SOLID)
+                    ++SolidInputs;
+                else if (Form == EResourceForm::RF_LIQUID)
+                    ++LiquidInputs;
+            }
+
+            for (const FItemAmount& PA : Products)
+            {
+                EResourceForm Form = UFGItemDescriptor::GetForm(PA.ItemClass);
+                if (Form == EResourceForm::RF_SOLID)
+                    ++SolidOutputs;
+                else if (Form == EResourceForm::RF_LIQUID)
+                    ++LiquidOutputs;
+            }
+
+            if (RowConfig.MachineType == EBuildable::Manufacturer && SolidInputs == 3)
                 InputVariant = 1;
             else if (RowConfig.MachineType == EBuildable::OilRefinery)
             {
-                if (InputPorts == 1)
-                {
-                    EResourceForm Form = UFGItemDescriptor::GetForm(Ingredients[0].ItemClass);
-                    if (Form == EResourceForm::RF_SOLID)
-                    {
-                        InputVariant = 1;
-                    }
-                    else if (Form == EResourceForm::RF_LIQUID)
-                    {
-                        InputVariant = 2;
-                    }
-                }
-                if (OutputPorts == 1)
-                {
-                    EResourceForm Form = UFGItemDescriptor::GetForm(Products[0].ItemClass);
-                    if (Form == EResourceForm::RF_SOLID)
-                    {
-                        OutputVariant = 1;
-                    }
-                    else if (Form == EResourceForm::RF_LIQUID)
-                    {
-                        OutputVariant = 2;
-                    }
-                }
+                if (SolidInputs == 1)
+                    InputVariant = 1;
+                else if (LiquidInputs == 1)
+                    InputVariant = 2;
+
+                if (SolidOutputs == 1)
+                    OutputVariant = 1;
+                else if (LiquidOutputs == 1)
+                    OutputVariant = 2;
+            }
+            else if (RowConfig.MachineType == EBuildable::Blender)
+            {
+                if (SolidInputs == 2 && LiquidInputs == 1)
+                    InputVariant = 1;
+                else if (SolidInputs == 1 && LiquidInputs == 2)
+                    InputVariant = 2;
+                else if (SolidInputs == 1 && LiquidInputs == 1)
+                    InputVariant = 3;
+                else if (SolidInputs == 0 && LiquidInputs == 2)
+                    InputVariant = 4;
+                else if (SolidInputs == 0 && LiquidInputs == 1)
+                    InputVariant = 5;
+
+                if (SolidOutputs == 1)
+                    OutputVariant = 1;
+                else if (LiquidOutputs == 1)
+                    OutputVariant = 2;
             }
         }
     }
