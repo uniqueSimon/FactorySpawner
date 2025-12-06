@@ -4,6 +4,8 @@
 #include "FGRecipe.h"
 #include "BuildableCache.h"
 #include "FactoryCommandParser.h"
+#include "FGBlueprintSubsystem.h"
+#include "FGBuildableManufacturer.h"
 
 namespace
 {
@@ -60,17 +62,17 @@ namespace
         {EBuildable::Smelter, MakeMachineConfig(500, {MakeMachineConnections(900, {MakeConnector(0, 0)})},
                                                 {MakeMachineConnections(800, {MakeConnector(1, 0)})})},
         {EBuildable::Foundry,
-         MakeMachineConfig(1000, {MakeMachineConnections(1100, {MakeConnector(2, -200), MakeConnector(0, 200)})},
+         MakeMachineConfig(1000, {MakeMachineConnections(1100, {MakeConnector(2, -200), MakeConnector(0, 200, 200)})},
                            {MakeMachineConnections(800, {MakeConnector(1, -200)})})},
         {EBuildable::Assembler,
-         MakeMachineConfig(900, {MakeMachineConnections(1400, {MakeConnector(1, -200), MakeConnector(2, 200)})},
+         MakeMachineConfig(900, {MakeMachineConnections(1400, {MakeConnector(1, -200), MakeConnector(2, 200, 200)})},
                            {MakeMachineConnections(1100, {MakeConnector(0, 0)})})},
         {EBuildable::OilRefinery,
          MakeMachineConfig(1000,
-                           {MakeMachineConnections(2000, {MakeConnector(0, -200)}, {MakeConnector(1, 200)}),
-                            MakeMachineConnections(1500, {}, {MakeConnector(1, 200)}),
-                            MakeMachineConnections(1500, {MakeConnector(0, -200)}, {})},
-                           {MakeMachineConnections(2000, {MakeConnector(1, -200)}, {MakeConnector(0, 200)}),
+                           {MakeMachineConnections(2000, {MakeConnector(0, -200, 400)}, {MakeConnector(1, 200)}),
+                            MakeMachineConnections(1500, {MakeConnector(0, -200)}, {}),
+                            MakeMachineConnections(1500, {}, {MakeConnector(1, 200)})},
+                           {MakeMachineConnections(2000, {MakeConnector(1, -200, 400)}, {MakeConnector(0, 200)}),
                             MakeMachineConnections(1500, {MakeConnector(1, -200)}, {}),
                             MakeMachineConnections(1500, {}, {MakeConnector(0, 200)})})},
         {EBuildable::Blender,
@@ -88,7 +90,7 @@ namespace
               /*1S,1L*/
               MakeMachineConnections(1800, {MakeConnector(1, 200, 400)}, {MakeConnector(2, -600)}),
               /*0S,2L*/
-              MakeMachineConnections(1500, {}, {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
+              MakeMachineConnections(1400, {}, {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
               /*0S,1L*/
               MakeMachineConnections(1200, {}, {MakeConnector(2, -600)})},
 
@@ -363,14 +365,14 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
                 InputVariant = 1;
             else if (RowConfig.MachineType == EBuildable::OilRefinery)
             {
-                if (SolidInputs == 1)
+                if (SolidInputs == 1 && LiquidInputs == 0)
                     InputVariant = 1;
-                else if (LiquidInputs == 1)
+                else if (SolidInputs == 0 && LiquidInputs == 1)
                     InputVariant = 2;
 
-                if (SolidOutputs == 1)
+                if (SolidOutputs == 1 && LiquidOutputs == 0)
                     OutputVariant = 1;
-                else if (LiquidOutputs == 1)
+                else if (SolidOutputs == 0 && LiquidOutputs == 1)
                     OutputVariant = 2;
             }
             else if (RowConfig.MachineType == EBuildable::Blender)
@@ -386,9 +388,9 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
                 else if (SolidInputs == 0 && LiquidInputs == 1)
                     InputVariant = 5;
 
-                if (SolidOutputs == 1)
+                if (SolidOutputs == 1 && LiquidOutputs == 0)
                     OutputVariant = 1;
-                else if (LiquidOutputs == 1)
+                else if (SolidOutputs == 0 && LiquidOutputs == 1)
                     OutputVariant = 2;
             }
         }
