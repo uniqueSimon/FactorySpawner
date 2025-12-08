@@ -29,8 +29,6 @@ class FACTORYSPAWNER_API AFactorySpawnerChat : public AChatCommandInstance
     void ResetSubsystemData();
 
   private:
-    EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
-
     /** Cache for buildables and recipes (world-specific) */
     UPROPERTY()
     UBuildableCache* BuildableCache;

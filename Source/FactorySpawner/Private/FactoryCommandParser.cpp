@@ -22,10 +22,40 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
                                          FString& OutError)
 {
     OutTokens.Reset();
+    
+    // Check for optional beltTier parameter at the end
+    TOptional<int32> BeltTier;
+    FString CommandInput = Input;
+    
+    // Look for "beltTier N" pattern (case-insensitive)
+    int32 BeltTierIndex = CommandInput.Find(TEXT("beltTier"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+    if (BeltTierIndex != INDEX_NONE)
+    {
+        // Extract everything after "beltTier"
+        FString BeltTierPart = CommandInput.RightChop(BeltTierIndex + 8).TrimStartAndEnd(); // 8 = len("beltTier")
+        
+        // Check if there's a comma before beltTier
+        FString BeforeBeltTier = CommandInput.Left(BeltTierIndex).TrimEnd();
+        if (BeforeBeltTier.EndsWith(TEXT(",")))
+        {
+            BeforeBeltTier = BeforeBeltTier.LeftChop(1).TrimEnd();
+        }
+        
+        // Parse the tier number
+        int32 Tier;
+        if (!LexTryParseString(Tier, *BeltTierPart) || Tier < 1 || Tier > 5)
+        {
+            OutError = FString::Printf(TEXT("beltTier must be 1-6, got '%s'"), *BeltTierPart);
+            return false;
+        }
+        
+        BeltTier = Tier;
+        CommandInput = BeforeBeltTier;
+    }
 
     // Split groups by comma
     TArray<FString> Groups;
-    Input.ParseIntoArray(Groups, TEXT(","), true);
+    CommandInput.ParseIntoArray(Groups, TEXT(","), true);
 
     for (int32 g = 0; g < Groups.Num(); ++g)
     {
@@ -96,6 +126,12 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
             }
 
             Token.ClockPercent = ClockSpeed;
+        }
+        
+        // Apply belt tier if specified
+        if (BeltTier.IsSet())
+        {
+            Token.BeltTier = BeltTier.GetValue();
         }
 
         OutTokens.Add(Token);

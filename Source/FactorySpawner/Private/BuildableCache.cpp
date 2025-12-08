@@ -79,6 +79,35 @@ void UBuildableCache::SetBeltClass(int32 Tier)
         CachedClasses.Add(EBuildable::Belt, LoadedClass);
 }
 
+int32 UBuildableCache::GetHighestUnlockedBeltTier(UWorld* World)
+{
+    if (!World)
+        return 1;
+
+    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
+    if (!RecipeManager)
+        return 1;
+
+    // Check belt tiers from 6 down to 1
+    for (int32 Tier = 6; Tier >= 1; --Tier)
+    {
+        FString RecipePath = FString::Printf(
+            TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_ConveyorBeltMk%d.Recipe_ConveyorBeltMk%d_C"), 
+            Tier, Tier);
+        
+        TSoftClassPtr<UFGRecipe> RecipePtr(FSoftObjectPath(RecipePath));
+        TSubclassOf<UFGRecipe> RecipeClass = RecipePtr.LoadSynchronous();
+        
+        if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
+        {
+            return Tier;
+        }
+    }
+
+    // Default to Mk1 if nothing found
+    return 1;
+}
+
 //-------------------------------------------------
 // Recipe loader
 //-------------------------------------------------
