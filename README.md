@@ -1,7 +1,7 @@
 # Factory Spawner
 https://ficsit.app/mod/FactorySpawner
 
-## Version 1.1.0 is out with added Refinery, Blender and Pipings
+**Version 1.1.0 is out with added Refinery, Blender and Pipings!**
 
 **Factory Spawner** takes the hassle out of manually placing and wiring every machine.  
 Simply tell it what you want to produce and how many machines you need, and it will:
