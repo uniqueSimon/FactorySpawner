@@ -9,15 +9,6 @@
 #include "BuildPlanGenerator.h"
 #include "EngineUtils.h"
 
-namespace
-{
-    static TArray<FFactoryCommandToken> DefaultClusterConfig = {
-        {3, EBuildable::Smelter, TOptional<FString>(TEXT("IngotIron"))},
-        {3, EBuildable::Constructor, TOptional<FString>(TEXT("IronPlate"))},
-        {2, EBuildable::Constructor, TOptional<FString>(TEXT("Wire"))},
-    };
-} // namespace
-
 AFactorySpawnerChat* AFactorySpawnerChat::Get(UWorld* World)
 {
     for (TActorIterator<AFactorySpawnerChat> It(World); It; ++It)
@@ -31,20 +22,12 @@ void AFactorySpawnerChat::BeginPlay()
 {
     Super::BeginPlay();
 
-    UWorld* World = GetWorld();
-
-    // Create BuildableCache if needed
     if (!BuildableCache)
-    {
         BuildableCache = NewObject<UBuildableCache>(this);
-    }
 
-    // Reset state for safety
     ResetSubsystemData();
-
-    FFactorySpawnerModule::ChatLog(World,
-                                   "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
-                                   "automatic chat command generation!");
+    FFactorySpawnerModule::ChatLog(GetWorld(),
+        TEXT("FactorySpawner loaded! Tool to generate commands: https://uniquesimon.github.io/satisfactory-planner/"));
 }
 
 void AFactorySpawnerChat::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -57,8 +40,6 @@ void AFactorySpawnerChat::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AFactorySpawnerChat::ResetSubsystemData()
 {
-    CurrentBuildPlan = FBuildPlan();
-
     if (BuildableCache)
     {
         BuildableCache->ClearCache();
@@ -80,39 +61,30 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     Sender->SendChatMessage(FString::Printf(TEXT("/FactorySpawner %s"), *Joined), FLinearColor::Green);
 
     if (Arguments[0].Equals(TEXT("BeltTier"), ESearchCase::IgnoreCase))
-    {
         return HandleBeltTierCommand(Arguments[1], Sender);
-    }
 
     TArray<FFactoryCommandToken> CommandTokens;
-    FString OutError;
-
-    if (!FFactoryCommandParser::ParseCommand(Joined, CommandTokens, OutError))
+    FString Error;
+    if (!FFactoryCommandParser::ParseCommand(Joined, CommandTokens, Error))
     {
-        UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *OutError);
-        Sender->SendChatMessage(OutError);
+        UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *Error);
+        Sender->SendChatMessage(Error);
         return EExecutionStatus::BAD_ARGUMENTS;
     }
 
-    UWorld* World = GetWorld();
-
-    FBuildPlanGenerator Generator(World, BuildableCache);
-    Generator.Generate(CommandTokens);
-
+    FBuildPlanGenerator(GetWorld(), BuildableCache).Generate(CommandTokens);
     return EExecutionStatus::COMPLETED;
 }
 
 EExecutionStatus AFactorySpawnerChat::HandleBeltTierCommand(const FString& Input, UCommandSender* Sender)
 {
-    int32 Tier = 0;
-    if (LexTryParseString(Tier, *Input) && Tier > 0 && Tier <= 8)
+    int32 Tier;
+    if (LexTryParseString(Tier, *Input) && Tier >= 1 && Tier <= 8)
     {
         BuildableCache->SetBeltClass(Tier);
-        Sender->SendChatMessage(FString::Printf(TEXT("Set Belt Tier Mk%d"), Tier), FLinearColor::Green);
+        Sender->SendChatMessage(FString::Printf(TEXT("Belt Tier: Mk%d"), Tier), FLinearColor::Green);
         return EExecutionStatus::COMPLETED;
     }
-    FString ErrorMsg = TEXT("BeltTier must be a number between 1 and 8");
-    UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *ErrorMsg);
-    Sender->SendChatMessage(ErrorMsg);
+    Sender->SendChatMessage(TEXT("BeltTier must be 1-8"));
     return EExecutionStatus::BAD_ARGUMENTS;
 }

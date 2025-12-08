@@ -26,9 +26,13 @@ struct FConnectionQueue
 
 struct FConnector
 {
-    int32 Index = 0;
-    int32 LocationX = 0;
-    int32 LocationY = 0;
+    int32 Index;
+    int32 LocationX;
+    int32 LocationY;
+
+    FConnector(int32 InIndex, int32 InX, int32 InY = 0) : Index(InIndex), LocationX(InX), LocationY(InY)
+    {
+    }
 };
 
 struct FMachineConnections
@@ -45,38 +49,18 @@ struct FMachineConfig
     TArray<FMachineConnections> OutputConnections;
 };
 
-// Helper factory functions to make initializers shorter in cpp files.
-inline FConnector MakeConnector(int32 Index, int32 LocationX, int32 LocationY = 0)
-{
-    FConnector C;
-    C.Index = Index;
-    C.LocationX = LocationX;
-    C.LocationY = LocationY;
-    return C;
-}
+#define MakeConnector FConnector
 
 inline FMachineConnections MakeMachineConnections(int32 Length, std::initializer_list<FConnector> Belt = {},
                                                   std::initializer_list<FConnector> Pipe = {})
 {
-    FMachineConnections MC;
-    MC.Length = Length;
-    for (const FConnector& c : Belt)
-        MC.Belt.Add(c);
-    for (const FConnector& p : Pipe)
-        MC.Pipe.Add(p);
-    return MC;
+    return {Length, TArray<FConnector>(Belt), TArray<FConnector>(Pipe)};
 }
 
 inline FMachineConfig MakeMachineConfig(int32 Width, std::initializer_list<FMachineConnections> Inputs = {},
                                         std::initializer_list<FMachineConnections> Outputs = {})
 {
-    FMachineConfig Cfg;
-    Cfg.Width = Width;
-    for (const FMachineConnections& m : Inputs)
-        Cfg.InputConnections.Add(m);
-    for (const FMachineConnections& m : Outputs)
-        Cfg.OutputConnections.Add(m);
-    return Cfg;
+    return {Width, TArray<FMachineConnections>(Inputs), TArray<FMachineConnections>(Outputs)};
 }
 
 class FBuildPlanGenerator
@@ -96,28 +80,32 @@ class FBuildPlanGenerator
                                const FMachineConnections& OutputConnections, bool bFirstUnitInRow, bool bEvenIndex,
                                bool bLastIndex);
     void SpawnWireAndConnect(UFGPowerConnectionComponent* A, UFGPowerConnectionComponent* B);
-    UFGPowerConnectionComponent* SpawnPowerPole(FVector Location);
-    void SpawnMachine(FVector Location, EBuildable MachineType, const TOptional<FString>& Recipe,
+    UFGPowerConnectionComponent* SpawnPowerPole(const FVector& Location);
+    void SpawnMachine(const FVector& Location, EBuildable MachineType, const TOptional<FString>& Recipe,
                       const TOptional<float>& Underclock, UFGPowerConnectionComponent*& outPowerConn,
                       TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                       TArray<UFGPipeConnectionComponent*>& outPipeConn);
-    TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(FVector Location, EBuildable SplitterOrMerger);
+    TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(const FVector& Location, EBuildable SplitterOrMerger);
     void SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
-    TArray<UFGPipeConnectionComponent*> SpawnPipeCross(FVector Location);
+    TArray<UFGPipeConnectionComponent*> SpawnPipeCross(const FVector& Location);
     void SpawnPipeAndConnect(UFGPipeConnectionComponent* From, UFGPipeConnectionComponent* To);
 
   private:
+    // Core references
     UWorld* World;
     UBuildableCache* Cache;
+    AFGCharacterPlayer* Player = nullptr;
+    UFGManufacturerClipboardRCO* RCO = nullptr;
+
+    // Blueprint output
     TArray<AFGBuildable*> BuildablesForBlueprint;
 
+    // Layout state
     int32 YCursor = 0;
     int32 XCursor = 0;
     int32 FirstMachineWidth = 0;
 
+    // Connection state
     FCachedPowerConnections CachedPowerConnections;
     FConnectionQueue ConnectionQueue;
-
-    AFGCharacterPlayer* Player = nullptr;
-    UFGManufacturerClipboardRCO* RCO = nullptr;
 };

@@ -4,12 +4,9 @@
 #include "BuildPlanTypes.h"
 #include "BuildableCache.generated.h"
 
-class AFactorySpawnerChat;
 class AFGBuildable;
-class AFGBuildableConveyorBelt;
 class AFGBuildableManufacturer;
 class UFGRecipe;
-class UStaticMesh;
 
 USTRUCT()
 struct FWrongRecipe
@@ -42,9 +39,6 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
     TSubclassOf<UFGRecipe> GetRecipeClass(const FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn,
                                                  UWorld* World);
 
-    // Mesh loader
-    TArray<UStaticMesh*> GetStaticMesh(EBuildable Type);
-
     void ClearCache();
 
   private:
@@ -54,8 +48,6 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
 
     UPROPERTY()
     TMap<FString, TSubclassOf<UFGRecipe>> CachedRecipeClasses;
-
-    TMap<EBuildable, TArray<UStaticMesh*>> CachedMeshes;
 
     UPROPERTY()
     TArray<FWrongRecipe> WrongRecipes;

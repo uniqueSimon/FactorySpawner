@@ -28,20 +28,8 @@ class FACTORYSPAWNER_API AFactorySpawnerChat : public AChatCommandInstance
     /** Clears current data (useful when changing savegames) */
     void ResetSubsystemData();
 
-    const FBuildPlan& GetBuildPlan() const
-    {
-        return CurrentBuildPlan;
-    }
-
-    UBuildableCache* GetCache() const
-    {
-        return BuildableCache;
-    }
-
   private:
     EExecutionStatus HandleBeltTierCommand(const FString& Input, UCommandSender* Sender);
-
-    FBuildPlan CurrentBuildPlan;
 
     /** Cache for buildables and recipes (world-specific) */
     UPROPERTY()

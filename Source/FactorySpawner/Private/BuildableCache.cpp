@@ -25,16 +25,6 @@ namespace
         return Loaded;
     }
 
-    // Generic soft object loader (for meshes)
-    template <typename T> T* LoadObjectSoft(const FString& Path, EBuildable Type)
-    {
-        TSoftObjectPtr<T> SoftObj(Path);
-        T* Loaded = SoftObj.LoadSynchronous();
-        if (!Loaded)
-            UE_LOG(LogFactorySpawner, Warning, TEXT("Failed to load object for %d at path: %s"), (int32) Type, *Path);
-        return Loaded;
-    }
-
     // Machine class paths table
     TMap<EBuildable, FString> MachineClassPaths = {
         {EBuildable::Splitter, "/Game/FactoryGame/Buildable/Factory/CA_Splitter/"
@@ -55,44 +45,6 @@ namespace
         {EBuildable::Lift,
          "/Game/FactoryGame/Buildable/Factory/ConveyorLiftMk1/Build_ConveyorLiftMk1.Build_ConveyorLiftMk1_C"}};
 
-    // Mesh paths table
-    TMap<EBuildable, TArray<FString>> MeshPaths = {
-        {EBuildable::Smelter,
-         {"/Game/FactoryGame/Buildable/Factory/SmelterMk1/Mesh/SmelterMk1_static.SmelterMk1_static",
-          "/Game/FactoryGame/Buildable/Factory/SmelterMk1/Mesh/SM_VAT_Smelter_01.SM_VAT_Smelter_01"}},
-        {EBuildable::Constructor,
-         {"/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Mesh/ConstructorMk1_static.ConstructorMk1_static",
-          "/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Mesh/SM_VAT_Constructor_MK1.SM_VAT_Constructor_MK1"}},
-        {EBuildable::Assembler,
-         {"/Game/FactoryGame/Buildable/Factory/AssemblerMk1/Mesh/AssemblerMk1_static.AssemblerMk1_static",
-          "/Game/FactoryGame/Buildable/Factory/AssemblerMk1/Mesh/SM_Assembler_VAT.SM_Assembler_VAT"}},
-        {EBuildable::Foundry,
-         {"/Game/FactoryGame/Buildable/Factory/FoundryMk1/Mesh/FoundryMk1_static.FoundryMk1_static",
-          "/Game/FactoryGame/Buildable/Factory/FoundryMk1/Mesh/SM_VAT_Foundry.SM_VAT_Foundry"}},
-        {EBuildable::Manufacturer,
-         {"/Game/FactoryGame/Buildable/Factory/ManufacturerMk1/Mesh/SM_Manufacturer.SM_Manufacturer",
-          "/Game/FactoryGame/Buildable/Factory/ManufacturerMk1/Mesh/SM_VAT_Manufacturer.SM_VAT_Manufacturer"}},
-        {EBuildable::OilRefinery,
-         {"/Game/FactoryGame/Buildable/Factory/OilRefinery/Mesh/SM_OilRefinery_01.SM_OilRefinery_01",
-          "/Game/FactoryGame/Buildable/Factory/OilRefinery/Mesh/SM_Refinery_VAT_01.SM_Refinery_VAT_01"}},
-        {EBuildable::Blender,
-         {"/Game/FactoryGame/Buildable/Factory/Blender/Mesh/SM_Blender_01.SM_Blender_01",
-          "/Game/FactoryGame/Buildable/Factory/Blender/Mesh/SM_Blender_VAT.SM_Blender_VAT"}},
-        {EBuildable::Splitter,
-         {"/Game/FactoryGame/Buildable/Factory/CA_Splitter/Mesh/"
-          "ConveyorAttachmentSplitter_static.ConveyorAttachmentSplitter_static",
-          "/Game/FactoryGame/Buildable/Factory/CA_Splitter/Mesh/SM_Splitter_01.SM_Splitter_01"}},
-        {EBuildable::Merger,
-         {"/Game/FactoryGame/Buildable/Factory/CA_Merger/Mesh/"
-          "ConveyorAttachmentMerger_static.ConveyorAttachmentMerger_static",
-          "/Game/FactoryGame/Buildable/Factory/CA_Merger/Mesh/SM_Merger_01.SM_Merger_01"}},
-        {EBuildable::PowerPole,
-         {"/Game/FactoryGame/Buildable/Factory/PowerPoleMk1/Mesh/SM_PowerPole_Mk1.SM_PowerPole_Mk1"}}};
-
-    FString FormatRecipeName(const FString& Recipe)
-    {
-        return FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
-    }
 } // namespace
 
 //-------------------------------------------------
@@ -136,23 +88,24 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     if (CachedRecipeClasses.Contains(Recipe))
         return CachedRecipeClasses[Recipe];
 
+    FString ProducedInName = ProducedIn->GetName();
     if (WrongRecipes.ContainsByPredicate([&](const FWrongRecipe& Item)
-                                         { return Item.Name == Recipe && Item.ProducedIn == ProducedIn->GetName(); }))
+                                         { return Item.Name == Recipe && Item.ProducedIn == ProducedInName; }))
         return nullptr;
 
-    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
     TArray<TSubclassOf<UFGRecipe>> AvailableRecipes;
-    RecipeManager->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
+    AFGRecipeManager::Get(World)->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
 
+    FString FormattedName = FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
     TSubclassOf<UFGRecipe>* FoundRecipe = AvailableRecipes.FindByPredicate(
-        [&](const TSubclassOf<UFGRecipe>& RecipeClass) { return RecipeClass->GetName() == FormatRecipeName(Recipe); });
+        [&](const TSubclassOf<UFGRecipe>& R) { return R->GetName() == FormattedName; });
 
     if (!FoundRecipe)
     {
-        WrongRecipes.Add({Recipe, ProducedIn->GetName()});
+        WrongRecipes.Add({Recipe, ProducedInName});
 
         TArray<FString> Names;
-        for (auto& R : AvailableRecipes)
+        for (const auto& R : AvailableRecipes)
         {
             FString N = R->GetName();
             N.RemoveFromStart(TEXT("Recipe_"));
@@ -160,13 +113,11 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
             Names.Add(N);
         }
 
-        FString Msg = Names.Num() == 0
-                          ? FString::Printf(TEXT("The machine %s has not been unlocked yet!"), *ProducedIn->GetName())
-                          : FString::Printf(TEXT("Following recipes are available for machine %s: %s"),
-                                            *ProducedIn->GetName(), *FString::Join(Names, TEXT(", ")));
+        FString Msg = Names.IsEmpty()
+            ? FString::Printf(TEXT("Machine %s not unlocked yet!"), *ProducedInName)
+            : FString::Printf(TEXT("Available recipes for %s: %s"), *ProducedInName, *FString::Join(Names, TEXT(", ")));
 
-        FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Recipe %s not found for machine %s. %s"), *Recipe,
-                                                              *ProducedIn->GetName(), *Msg));
+        FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Recipe '%s' not found. %s"), *Recipe, *Msg));
         return nullptr;
     }
 
@@ -174,37 +125,10 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     return *FoundRecipe;
 }
 
-//-------------------------------------------------
-// Mesh loader
-//-------------------------------------------------
-TArray<UStaticMesh*> UBuildableCache::GetStaticMesh(EBuildable Type)
-{
-    if (CachedMeshes.Contains(Type))
-        return CachedMeshes[Type];
-
-    if (!MeshPaths.Contains(Type))
-    {
-        UE_LOG(LogFactorySpawner, Warning, TEXT("No mesh paths defined for buildable type %d"), (int32) Type);
-        return {};
-    }
-
-    TArray<UStaticMesh*> LoadedMeshes;
-    for (const FString& Path : MeshPaths[Type])
-    {
-        if (UStaticMesh* Mesh = LoadObjectSoft<UStaticMesh>(Path, Type))
-            LoadedMeshes.Add(Mesh);
-    }
-
-    CachedMeshes.Add(Type, LoadedMeshes);
-    return LoadedMeshes;
-}
-
 void UBuildableCache::ClearCache()
 {
     CachedClasses.Empty();
     CachedRecipeClasses.Empty();
-    CachedMeshes.Empty();
     WrongRecipes.Empty();
-
-    UE_LOG(LogFactorySpawner, Log, TEXT("[BuildableCache] Cleared all cached data."));
+    UE_LOG(LogFactorySpawner, Log, TEXT("Cache cleared"));
 }
