@@ -133,8 +133,8 @@ int32 UBuildableCache::GetHighestUnlockedPipelineTier(UWorld* World)
 
     // Check Mk2 first
     FString RecipePath = TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_PipelineMk2.Recipe_PipelineMk2_C");
-    TSoftClassPtr<UFGRecipe> RecipePtr(FSoftObjectPath(RecipePath));
-    TSubclassOf<UFGRecipe> RecipeClass = RecipePtr.LoadSynchronous();
+    TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
+    TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
     
     if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
     {
