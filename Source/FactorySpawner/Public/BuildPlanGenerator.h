@@ -97,7 +97,8 @@ class FBuildPlanGenerator
                                bool bLastIndex);
     void SpawnWireAndConnect(UFGPowerConnectionComponent* A, UFGPowerConnectionComponent* B);
     UFGPowerConnectionComponent* SpawnPowerPole(FVector Location);
-    void SpawnMachine(FVector Location, EBuildable MachineType, UFGPowerConnectionComponent*& outPowerConn,
+    void SpawnMachine(FVector Location, EBuildable MachineType, const TOptional<FString>& Recipe,
+                      const TOptional<float>& Underclock, UFGPowerConnectionComponent*& outPowerConn,
                       TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                       TArray<UFGPipeConnectionComponent*>& outPipeConn);
     TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(FVector Location, EBuildable SplitterOrMerger);
@@ -116,4 +117,7 @@ class FBuildPlanGenerator
 
     FCachedPowerConnections CachedPowerConnections;
     FConnectionQueue ConnectionQueue;
+
+    AFGCharacterPlayer* Player = nullptr;
+    UFGManufacturerClipboardRCO* RCO = nullptr;
 };

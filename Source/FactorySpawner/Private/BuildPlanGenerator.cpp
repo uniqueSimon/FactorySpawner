@@ -8,6 +8,8 @@
 #include "FGBuildableManufacturer.h"
 #include "FGTestBlueprintFunctionLibrary.h"
 #include "Containers/Queue.h"
+#include "FGPlayerController.h"
+#include "FGCharacterPlayer.h"
 
 // electrical
 #include "FGPowerConnectionComponent.h"
@@ -132,8 +134,13 @@ namespace
 
 } // namespace
 
-FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache) : World(InWorld), Cache(InCache)
+FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache)
 {
+    World = InWorld;
+    Cache = InCache;
+    AFGPlayerController* PC = Cast<AFGPlayerController>(World->GetFirstPlayerController());
+    Player = Cast<AFGCharacterPlayer>(PC->GetCharacter());
+    RCO = PC->GetRemoteCallObjectOfClass<UFGManufacturerClipboardRCO>();
 }
 
 void FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
@@ -309,7 +316,7 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
     UFGPowerConnectionComponent* MachinePowerConn;
     TArray<UFGFactoryConnectionComponent*> MachineBeltConn;
     TArray<UFGPipeConnectionComponent*> MachinePipeConn;
-    SpawnMachine(MachineLocation, MachineType, MachinePowerConn, MachineBeltConn, MachinePipeConn);
+    SpawnMachine(MachineLocation, MachineType, Recipe, Underclock, MachinePowerConn, MachineBeltConn, MachinePipeConn);
 
     if (!bEvenIndex)
     {
@@ -477,8 +484,8 @@ UFGPowerConnectionComponent* FBuildPlanGenerator::SpawnPowerPole(FVector Locatio
     return PolePowerConnection;
 }
 
-void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType,
-                                       UFGPowerConnectionComponent*& outPowerConn,
+void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType, const TOptional<FString>& Recipe,
+                                       const TOptional<float>& Underclock, UFGPowerConnectionComponent*& outPowerConn,
                                        TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                                        TArray<UFGPipeConnectionComponent*>& outPipeConn)
 {
@@ -489,7 +496,24 @@ void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType,
     // Decide flip for certain buildables
     const FTransform UnitTransform = MoveTransform(Location, bFlip);
 
-    AFGBuildable* SpawnedMachine = World->SpawnActor<AFGBuildable>(MachineClass, UnitTransform);
+    AFGBuildableManufacturer* SpawnedMachine = World->SpawnActor<AFGBuildableManufacturer>(MachineClass, UnitTransform);
+
+    if (Recipe.IsSet())
+    {
+        TSubclassOf<UFGRecipe> RecipeClass = Cache->GetRecipeClass(Recipe.GetValue(), MachineClass, World);
+        if (RecipeClass)
+        {
+            if (SpawnedMachine)
+            {
+                if (Underclock.IsSet() && RCO && Player)
+                    RCO->Server_PasteSettings(SpawnedMachine, Player, RecipeClass, Underclock.GetValue() / 100.0f, 1.0f,
+                                              nullptr, nullptr);
+                else
+                    SpawnedMachine->SetRecipe(RecipeClass);
+            }
+        }
+    }
+
     BuildablesForBlueprint.Add(SpawnedMachine);
 
     UFGPowerConnectionComponent* MachinePowerConn = GetMachinePowerConn(SpawnedMachine);
@@ -532,7 +556,7 @@ void FBuildPlanGenerator::SpawnBeltAndConnect(UFGFactoryConnectionComponent* Fro
     SplinePoints.Add(FSplinePointData(LocalFrom, LocalTangent));
     SplinePoints.Add(FSplinePointData(LocalTo, LocalTangent));
 
-    AFGBuildableConveyorBelt* ResplinedBelt=AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
+    AFGBuildableConveyorBelt* ResplinedBelt = AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
 
     BuildablesForBlueprint.Add(ResplinedBelt);
 }
