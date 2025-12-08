@@ -22,17 +22,17 @@
 
 namespace
 {
-    const FQuat Rot180 = FQuat(FVector::UpVector, PI);
+    const FQuat Rotation180 = FQuat(FVector::UpVector, PI);
 
     FTransform MoveTransform(const FTransform& Base, const FVector& Offset, bool bFlip = false)
     {
         const FVector NewLoc = Base.TransformPosition(Offset);
-        const FQuat NewRot = bFlip ? Rot180 * Base.GetRotation() : Base.GetRotation();
+        const FQuat NewRot = bFlip ? Rotation180 * Base.GetRotation() : Base.GetRotation();
         return FTransform(NewRot, NewLoc);
     }
 
     template<typename T>
-    TArray<T*> GetConnections(AFGBuildable* Buildable)
+    TArray<T*> GetConnections1(AFGBuildable* Buildable)
     {
         TArray<T*> Out;
         if (Buildable)
@@ -235,8 +235,8 @@ void FClusterSpawner::SpawnBelts(const TArray<FConnectionWithSocket>& BeltConnec
         if (!From || !To)
             continue;
 
-        const auto FromConns = GetConnections<UFGFactoryConnectionComponent>(From);
-        const auto ToConns = GetConnections<UFGFactoryConnectionComponent>(To);
+        const auto FromConns = GetConnections1<UFGFactoryConnectionComponent>(From);
+        const auto ToConns = GetConnections1<UFGFactoryConnectionComponent>(To);
 
         if (!FromConns.IsValidIndex(Belt.FromSocket) || !ToConns.IsValidIndex(Belt.ToSocket))
             continue;
@@ -257,8 +257,8 @@ void FClusterSpawner::SpawnPipes(const TArray<FConnectionWithSocket>& PipeConnec
         if (!From || !To)
             continue;
 
-        const auto FromConns = GetConnections<UFGPipeConnectionComponent>(From);
-        const auto ToConns = GetConnections<UFGPipeConnectionComponent>(To);
+        const auto FromConns = GetConnections1<UFGPipeConnectionComponent>(From);
+        const auto ToConns = GetConnections1<UFGPipeConnectionComponent>(To);
 
         if (!FromConns.IsValidIndex(P.FromSocket) || !ToConns.IsValidIndex(P.ToSocket))
             continue;

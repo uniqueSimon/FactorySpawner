@@ -2,15 +2,26 @@
 
 #include "CoreMinimal.h"
 #include "BuildPlanTypes.h"
-#include <initializer_list>
 
 class UBuildableCache;
+class AFGBuildable;
+class UFGPowerConnectionComponent;
+class UFGPipeConnectionComponent;
+class UFGFactoryConnectionComponent;
 
 struct FCachedPowerConnections
 {
-    FGuid LastMachine;
-    FGuid LastPole;
-    FGuid FirstPole;
+    UFGPowerConnectionComponent* LastMachine = nullptr;
+    UFGPowerConnectionComponent* LastPole = nullptr;
+    UFGPowerConnectionComponent* FirstPole = nullptr;
+};
+
+struct FConnectionQueue
+{
+    TQueue<UFGFactoryConnectionComponent*> Input;
+    TQueue<UFGFactoryConnectionComponent*> Output;
+    TQueue<UFGPipeConnectionComponent*> PipeInput;
+    TQueue<UFGPipeConnectionComponent*> PipeOutput;
 };
 
 struct FConnector
@@ -44,10 +55,8 @@ inline FConnector MakeConnector(int32 Index, int32 LocationX, int32 LocationY = 
     return C;
 }
 
-inline FMachineConnections MakeMachineConnections(
-    int32 Length,
-    std::initializer_list<FConnector> Belt = {},
-    std::initializer_list<FConnector> Pipe = {})
+inline FMachineConnections MakeMachineConnections(int32 Length, std::initializer_list<FConnector> Belt = {},
+                                                  std::initializer_list<FConnector> Pipe = {})
 {
     FMachineConnections MC;
     MC.Length = Length;
@@ -58,10 +67,8 @@ inline FMachineConnections MakeMachineConnections(
     return MC;
 }
 
-inline FMachineConfig MakeMachineConfig(
-    int32 Width,
-    std::initializer_list<FMachineConnections> Inputs = {},
-    std::initializer_list<FMachineConnections> Outputs = {})
+inline FMachineConfig MakeMachineConfig(int32 Width, std::initializer_list<FMachineConnections> Inputs = {},
+                                        std::initializer_list<FMachineConnections> Outputs = {})
 {
     FMachineConfig Cfg;
     Cfg.Width = Width;
@@ -77,21 +84,36 @@ class FBuildPlanGenerator
   public:
     explicit FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache);
 
-    FBuildPlan Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
+    void Generate(const TArray<FFactoryCommandToken>& ClusterConfig);
 
   private:
     void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex);
     void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width, const FMachineConnections& InputConnections,
                        const FMachineConnections& OutputConnections);
+    void CalculateMachineSetup(EBuildable MachineType, const TOptional<FString>& Recipe,
+                               const TOptional<float>& Underclock, int32 Width,
+                               const FMachineConnections& InputConnections,
+                               const FMachineConnections& OutputConnections, bool bFirstUnitInRow, bool bEvenIndex,
+                               bool bLastIndex);
+    void SpawnWireAndConnect(UFGPowerConnectionComponent* A, UFGPowerConnectionComponent* B);
+    UFGPowerConnectionComponent* SpawnPowerPole(FVector Location);
+    void SpawnMachine(FVector Location, EBuildable MachineType, UFGPowerConnectionComponent*& outPowerConn,
+                      TArray<UFGFactoryConnectionComponent*>& outBeltConn,
+                      TArray<UFGPipeConnectionComponent*>& outPipeConn);
+    TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(FVector Location, EBuildable SplitterOrMerger);
+    void SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
+    TArray<UFGPipeConnectionComponent*> SpawnPipeCross(FVector Location);
+    void SpawnPipeAndConnect(UFGPipeConnectionComponent* From, UFGPipeConnectionComponent* To);
 
   private:
     UWorld* World;
     UBuildableCache* Cache;
-    FBuildPlan BuildPlan;
+    TArray<AFGBuildable*> BuildablesForBlueprint;
 
     int32 YCursor = 0;
     int32 XCursor = 0;
     int32 FirstMachineWidth = 0;
 
     FCachedPowerConnections CachedPowerConnections;
+    FConnectionQueue ConnectionQueue;
 };

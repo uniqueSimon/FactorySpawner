@@ -72,3 +72,6 @@ Plugins/*/Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
+
+# Generated stub files for IntelliSense (not part of actual build)
+**/*.generated.h

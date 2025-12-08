@@ -6,54 +6,49 @@
 #include "FactoryCommandParser.h"
 #include "FGBlueprintSubsystem.h"
 #include "FGBuildableManufacturer.h"
+#include "FGTestBlueprintFunctionLibrary.h"
+#include "Containers/Queue.h"
+
+// electrical
+#include "FGPowerConnectionComponent.h"
+#include "FGBuildableWire.h"
+#include "FGBuildablePowerPole.h"
+
+// belts
+#include "FGFactoryConnectionComponent.h"
+#include "FGBuildableConveyorBelt.h"
+
+// pipes
+#include "FGBuildablePipeline.h"
+#include "FGPipeConnectionComponent.h"
+#include "FGBuildablePipelineJunction.h"
 
 namespace
 {
-    // ---------- helper types ----------
-    struct FBeltConnector
-    {
-        FGuid UnitId;
-        int32 SocketNumber = 0;
-    };
+    const FQuat Rot180 = FQuat(FVector::UpVector, PI);
 
-    // Simple FIFO queue implemented with array + read index
-    struct FConnArrayQueue
+    FTransform MoveTransform(const FVector& Offset, bool bFlip = false)
     {
-        TArray<FBeltConnector> Items;
-        int32 ReadIndex = 0;
+        FTransform Base = FTransform::Identity;
+        const FVector NewLoc = Base.TransformPosition(Offset);
+        const FQuat NewRot = bFlip ? Rot180 * Base.GetRotation() : Base.GetRotation();
+        return FTransform(NewRot, NewLoc);
+    }
 
-        void Reset()
-        {
-            Items.Reset();
-            ReadIndex = 0;
-        }
-        void Enqueue(const FBeltConnector& Item)
-        {
-            Items.Add(Item);
-        }
-        bool Dequeue(FBeltConnector& Out)
-        {
-            if (ReadIndex < Items.Num())
-            {
-                Out = Items[ReadIndex++];
-                // optionally shrink memory if ReadIndex grows large, but not necessary here
-                return true;
-            }
-            return false;
-        }
-        bool IsEmpty() const
-        {
-            return ReadIndex >= Items.Num();
-        }
-    };
-
-    struct FConnectionQueue
+    template <typename T> TArray<T*> GetConnections(AFGBuildable* Buildable)
     {
-        FConnArrayQueue Input;
-        FConnArrayQueue Output;
-        FConnArrayQueue PipeInput;
-        FConnArrayQueue PipeOutput;
-    };
+        TArray<T*> Out;
+        if (Buildable)
+            Buildable->GetComponents<T>(Out);
+        return Out;
+    }
+
+    UFGPowerConnectionComponent* GetMachinePowerConn(AFGBuildable* Buildable)
+    {
+        TArray<UFGPowerConnectionComponent*> PowerConnections;
+        Buildable->GetComponents<UFGPowerConnectionComponent>(PowerConnections);
+        return PowerConnections[0];
+    }
 
     // Machine configuration map (use helper factories from header)
     static const TMap<EBuildable, FMachineConfig> MachineConfigList = {
@@ -135,177 +130,14 @@ namespace
         Plan.PipeConnections.Add({FromUnit, FromSocket, ToUnit, ToSocket});
     }
 
-    // ---------- main per-machine setup ----------
-    void CalculateMachineSetup(FBuildPlan& BuildPlan, EBuildable MachineType, const TOptional<FString>& Recipe,
-                               const TOptional<float>& Underclock, int32 XCursor, int32 YCursor, int32 Width,
-                               const FMachineConnections& InputConnections,
-                               const FMachineConnections& OutputConnections, FConnectionQueue& ConnectionQueue,
-                               FCachedPowerConnections& CachedPowerConnections, bool bFirstUnitInRow, bool bEvenIndex,
-                               bool bLastIndex)
-    {
-        // create machine unit
-        FGuid MachineId = FGuid::NewGuid();
-        const FVector MachineLocation = FVector((float) XCursor, (float) YCursor, 0.0f);
-
-        AddBuildableUnit(BuildPlan, MachineId, MachineType, MachineLocation, Recipe, Underclock);
-
-        // Power handling (even/odd indexing pattern)
-        if (!bEvenIndex)
-        {
-            if (bLastIndex)
-            {
-                // link previous pole -> this machine
-                if (CachedPowerConnections.LastPole.IsValid())
-                    AddWire(BuildPlan, CachedPowerConnections.LastPole, MachineId);
-            }
-            else
-            {
-                // remember last machine for later connection
-                CachedPowerConnections.LastMachine = MachineId;
-            }
-        }
-        else
-        {
-            // place a power pole between machines
-            FGuid PowerPoleId = FGuid::NewGuid();
-            const FVector PowerPoleRel = FVector(-(Width / 2.0f), -(InputConnections.Length / 2.0f), 0.0f);
-            AddBuildableUnit(BuildPlan, PowerPoleId, EBuildable::PowerPole, MachineLocation + PowerPoleRel);
-
-            // connect pole -> machine
-            AddWire(BuildPlan, PowerPoleId, MachineId);
-
-            if (bFirstUnitInRow)
-            {
-                if (CachedPowerConnections.FirstPole.IsValid())
-                {
-                    // connect pole -> first pole of previous row
-                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.FirstPole);
-                }
-                CachedPowerConnections.FirstPole = PowerPoleId;
-            }
-            else
-            {
-                // connect pole -> last machine & last pole (previous on same row)
-                if (CachedPowerConnections.LastMachine.IsValid())
-                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.LastMachine);
-
-                if (CachedPowerConnections.LastPole.IsValid())
-                    AddWire(BuildPlan, PowerPoleId, CachedPowerConnections.LastPole);
-            }
-
-            CachedPowerConnections.LastPole = PowerPoleId;
-        }
-
-        // Input splitters and belt wiring
-        for (const FConnector& Conn : InputConnections.Belt)
-        {
-            FGuid SplitterId = FGuid::NewGuid();
-            const FVector SplitterLocation =
-                MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 100.0f + Conn.LocationY);
-            AddBuildableUnit(BuildPlan, SplitterId, EBuildable::Splitter, SplitterLocation);
-
-            // connect previous item -> splitter (if present)
-            if (!bFirstUnitInRow)
-            {
-                FBeltConnector Prev;
-                if (ConnectionQueue.Input.Dequeue(Prev))
-                {
-                    AddBelt(BuildPlan, Prev.UnitId, Prev.SocketNumber, SplitterId, 1);
-                }
-            }
-
-            // enqueue this splitter for future machines
-            ConnectionQueue.Input.Enqueue({SplitterId, 0});
-
-            // connect splitter -> machine input socket
-            AddBelt(BuildPlan, SplitterId, 3, MachineId, Conn.Index);
-        }
-
-        // Output mergers and belt wiring
-        for (const FConnector& Conn : OutputConnections.Belt)
-        {
-            FGuid MergerId = FGuid::NewGuid();
-            const FVector MergerLocation =
-                MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 100.0f + Conn.LocationY);
-            AddBuildableUnit(BuildPlan, MergerId, EBuildable::Merger, MergerLocation);
-
-            // connect merger -> previously enqueued output (if present)
-            if (!bFirstUnitInRow)
-            {
-                FBeltConnector Prev;
-                if (ConnectionQueue.Output.Dequeue(Prev))
-                {
-                    AddBelt(BuildPlan, MergerId, 1, Prev.UnitId, Prev.SocketNumber);
-                }
-            }
-
-            // enqueue this merger for future row's machines
-            ConnectionQueue.Output.Enqueue({MergerId, 0});
-
-            // connect machine output -> merger
-            AddBelt(BuildPlan, MachineId, Conn.Index, MergerId, 2);
-        }
-
-        // Input pipes
-        for (const FConnector& Conn : InputConnections.Pipe)
-        {
-            FGuid PipeCrossId = FGuid::NewGuid();
-            const FVector PipeCrossLocation =
-                MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 175.0f + Conn.LocationY);
-            AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
-
-            // connect previous item -> pipe cross (if present)
-            if (!bFirstUnitInRow)
-            {
-                FBeltConnector Prev;
-                if (ConnectionQueue.PipeInput.Dequeue(Prev))
-                {
-                    AddPipe(BuildPlan, Prev.UnitId, Prev.SocketNumber, PipeCrossId, 3);
-                }
-            }
-
-            // enqueue this pipe cross for future machines
-            ConnectionQueue.PipeInput.Enqueue({PipeCrossId, 0});
-
-            // connect pipe cross -> machine input socket
-            AddPipe(BuildPlan, PipeCrossId, 1, MachineId, Conn.Index);
-        }
-
-        // Output pipes
-        for (const FConnector& Conn : OutputConnections.Pipe)
-        {
-            FGuid PipeCrossId = FGuid::NewGuid();
-            const FVector PipeCrossLocation =
-                MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 175.0f + Conn.LocationY);
-            AddBuildableUnit(BuildPlan, PipeCrossId, EBuildable::PipeCross, PipeCrossLocation);
-
-            // connect pipe cross -> previously enqueued output (if present)
-            if (!bFirstUnitInRow)
-            {
-                FBeltConnector Prev;
-                if (ConnectionQueue.PipeOutput.Dequeue(Prev))
-                {
-                    AddPipe(BuildPlan, PipeCrossId, 3, Prev.UnitId, Prev.SocketNumber);
-                }
-            }
-
-            // enqueue this pipe cross for future row's machines
-            ConnectionQueue.PipeOutput.Enqueue({PipeCrossId, 0});
-
-            // connect machine output -> pipe cross
-            AddPipe(BuildPlan, MachineId, Conn.Index, PipeCrossId, 2);
-        }
-    }
-
 } // namespace
 
 FBuildPlanGenerator::FBuildPlanGenerator(UWorld* InWorld, UBuildableCache* InCache) : World(InWorld), Cache(InCache)
 {
 }
 
-FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
+void FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterConfig)
 {
-    BuildPlan = FBuildPlan();
     YCursor = XCursor = FirstMachineWidth = 0;
     CachedPowerConnections = {};
 
@@ -315,7 +147,35 @@ FBuildPlan FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& Clu
         ProcessRow(RowConfig, RowIndex++);
     }
 
-    return BuildPlan;
+    FBlueprintRecord record;
+    record.BlueprintName = TEXT("FactorySpawner");
+    record.BlueprintDescription = TEXT("Auto-generated blueprint.");
+    record.Color = FLinearColor::White;
+    record.Priority = 0;
+
+    // Dimensions: small default
+    FIntVector Dimensions(1, 1, 1);
+
+    if (AFGBlueprintSubsystem* BlueprintSubsystem = AFGBlueprintSubsystem::Get(World))
+    {
+        FTransform SpawnTransform = FTransform::Identity;
+        if (UFGBlueprintDescriptor* BlueprintDescriptor =
+                BlueprintSubsystem->GetBlueprintDescriptorByNameString(record.BlueprintName))
+        {
+            BlueprintSubsystem->DeleteBlueprintDescriptor(BlueprintDescriptor);
+        }
+        FBlueprintHeader Header =
+            BlueprintSubsystem->WriteBlueprintToArchive(record, SpawnTransform, BuildablesForBlueprint, Dimensions);
+        BlueprintSubsystem->RefreshBlueprintsAndDescriptors();
+
+        UE_LOG(LogTemp, Warning, TEXT("Wrote test blueprint '%s'"), *Header.BlueprintName);
+    }
+
+    // Cleanup the spawned actors
+    for (AFGBuildable* Buildable : BuildablesForBlueprint)
+    {
+        Buildable->Destroy();
+    }
 }
 
 void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex)
@@ -411,15 +271,18 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
 
     // advance Y cursor by the machine's output length
     YCursor += OutputConnections.Length;
-    CachedPowerConnections.LastMachine.Invalidate();
-    CachedPowerConnections.LastPole.Invalidate();
+    CachedPowerConnections.LastMachine = nullptr;
+    CachedPowerConnections.LastPole = nullptr;
 }
 
 void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width,
                                         const FMachineConnections& InputConnections,
                                         const FMachineConnections& OutputConnections)
 {
-    FConnectionQueue ConnectionQueue;
+    ConnectionQueue.Input.Empty();
+    ConnectionQueue.Output.Empty();
+    ConnectionQueue.PipeInput.Empty();
+    ConnectionQueue.PipeOutput.Empty();
 
     for (int32 i = 0; i < RowConfig.Count; ++i)
     {
@@ -427,10 +290,265 @@ void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, i
         const bool bEvenIndex = (i % 2 == 0);
         const bool bLastIndex = (i == RowConfig.Count - 1);
 
-        CalculateMachineSetup(BuildPlan, RowConfig.MachineType, RowConfig.Recipe, RowConfig.ClockPercent, XCursor,
-                              YCursor, Width, InputConnections, OutputConnections, ConnectionQueue,
-                              CachedPowerConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
+        CalculateMachineSetup(RowConfig.MachineType, RowConfig.Recipe, RowConfig.ClockPercent, Width, InputConnections,
+                              OutputConnections, bFirstUnitInRow, bEvenIndex, bLastIndex);
 
         XCursor += Width;
     }
+}
+// ---------- main per-machine setup ----------
+void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TOptional<FString>& Recipe,
+                                                const TOptional<float>& Underclock, int32 Width,
+                                                const FMachineConnections& InputConnections,
+                                                const FMachineConnections& OutputConnections, bool bFirstUnitInRow,
+                                                bool bEvenIndex, bool bLastIndex)
+{
+    // create machine unit
+    const FVector MachineLocation = FVector(XCursor, YCursor, 0.0f);
+
+    UFGPowerConnectionComponent* MachinePowerConn;
+    TArray<UFGFactoryConnectionComponent*> MachineBeltConn;
+    TArray<UFGPipeConnectionComponent*> MachinePipeConn;
+    SpawnMachine(MachineLocation, MachineType, MachinePowerConn, MachineBeltConn, MachinePipeConn);
+
+    if (!bEvenIndex)
+    {
+        if (bLastIndex)
+        {
+            // link previous pole -> this machine
+            if (CachedPowerConnections.LastPole != nullptr)
+            {
+                SpawnWireAndConnect(CachedPowerConnections.LastPole, MachinePowerConn);
+            }
+        }
+        else
+        {
+            // remember last machine for later connection
+            CachedPowerConnections.LastMachine = MachinePowerConn;
+        }
+    }
+    else
+    {
+        // place a power pole between machines
+        const FVector PowerPoleLocation =
+            MachineLocation + FVector(-(Width / 2.0f), -(InputConnections.Length / 2.0f), 0.0f);
+        UFGPowerConnectionComponent* PolePowerConnection = SpawnPowerPole(PowerPoleLocation);
+
+        // connect pole -> machine
+        SpawnWireAndConnect(PolePowerConnection, MachinePowerConn);
+
+        if (bFirstUnitInRow)
+        {
+            if (CachedPowerConnections.FirstPole != nullptr)
+            {
+                // connect pole -> first pole of previous row
+                SpawnWireAndConnect(PolePowerConnection, CachedPowerConnections.FirstPole);
+            }
+            CachedPowerConnections.FirstPole = PolePowerConnection;
+        }
+        else
+        {
+            // connect pole -> last machine & last pole (previous on same row)
+            if (CachedPowerConnections.LastMachine != nullptr)
+                SpawnWireAndConnect(PolePowerConnection, CachedPowerConnections.LastMachine);
+
+            if (CachedPowerConnections.LastPole != nullptr)
+                SpawnWireAndConnect(PolePowerConnection, CachedPowerConnections.LastPole);
+        }
+
+        CachedPowerConnections.LastPole = PolePowerConnection;
+    }
+
+    // Input splitters and belt wiring
+    for (const FConnector& Conn : InputConnections.Belt)
+    {
+        const FVector SplitterLocation =
+            MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 100.0f + Conn.LocationY);
+        TArray<UFGFactoryConnectionComponent*> SplitterConn =
+            SpawnSplitterOrMerger(SplitterLocation, EBuildable::Splitter);
+
+        // connect previous item -> splitter (if present)
+        if (!bFirstUnitInRow)
+        {
+            UFGFactoryConnectionComponent* Prev;
+            if (ConnectionQueue.Input.Dequeue(Prev))
+            {
+                SpawnBeltAndConnect(Prev, SplitterConn[1]);
+            }
+        }
+
+        // enqueue this splitter for future machines
+        ConnectionQueue.Input.Enqueue(SplitterConn[0]);
+
+        // connect splitter -> machine input socket
+        SpawnBeltAndConnect(SplitterConn[3], MachineBeltConn[Conn.Index]);
+    }
+
+    // Output mergers and belt wiring
+    for (const FConnector& Conn : OutputConnections.Belt)
+    {
+        const FVector MergerLocation =
+            MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 100.0f + Conn.LocationY);
+        TArray<UFGFactoryConnectionComponent*> MergerConn = SpawnSplitterOrMerger(MergerLocation, EBuildable::Merger);
+
+        // connect merger -> previously enqueued output (if present)
+        if (!bFirstUnitInRow)
+        {
+            UFGFactoryConnectionComponent* Prev;
+            if (ConnectionQueue.Output.Dequeue(Prev))
+            {
+                SpawnBeltAndConnect(MergerConn[1], Prev);
+            }
+        }
+
+        // enqueue this merger for future row's machines
+        ConnectionQueue.Output.Enqueue(MergerConn[0]);
+
+        // connect machine output -> merger
+        SpawnBeltAndConnect(MachineBeltConn[Conn.Index], MergerConn[2]);
+    }
+
+    // Input pipes
+    for (const FConnector& Conn : InputConnections.Pipe)
+    {
+        const FVector PipeCrossLocation =
+            MachineLocation + FVector(Conn.LocationX, -InputConnections.Length + 200.0f, 175.0f + Conn.LocationY);
+
+        TArray<UFGPipeConnectionComponent*> PipeCrossConn = SpawnPipeCross(PipeCrossLocation);
+
+        // connect previous item -> pipe cross (if present)
+        if (!bFirstUnitInRow)
+        {
+            UFGPipeConnectionComponent* Prev;
+            if (ConnectionQueue.PipeInput.Dequeue(Prev))
+            {
+                SpawnPipeAndConnect(Prev, PipeCrossConn[3]);
+            }
+        }
+
+        // enqueue this pipe cross for future machines
+        ConnectionQueue.PipeInput.Enqueue(PipeCrossConn[0]);
+
+        // connect pipe cross -> machine input socket
+        SpawnPipeAndConnect(MachinePipeConn[Conn.Index], PipeCrossConn[1]);
+    }
+
+    // Output pipes
+    for (const FConnector& Conn : OutputConnections.Pipe)
+    {
+        const FVector PipeCrossLocation =
+            MachineLocation + FVector(Conn.LocationX, OutputConnections.Length - 200.0f, 175.0f + Conn.LocationY);
+        TArray<UFGPipeConnectionComponent*> PipeCrossConn = SpawnPipeCross(PipeCrossLocation);
+
+        // connect pipe cross -> previously enqueued output (if present)
+        if (!bFirstUnitInRow)
+        {
+            UFGPipeConnectionComponent* Prev;
+            if (ConnectionQueue.PipeOutput.Dequeue(Prev))
+            {
+                SpawnPipeAndConnect(Prev, PipeCrossConn[3]);
+            }
+        }
+
+        // enqueue this pipe cross for future row's machines
+        ConnectionQueue.PipeOutput.Enqueue(PipeCrossConn[0]);
+
+        // connect machine output -> pipe cross
+        SpawnPipeAndConnect(MachinePipeConn[Conn.Index], PipeCrossConn[2]);
+    }
+}
+
+void FBuildPlanGenerator::SpawnWireAndConnect(UFGPowerConnectionComponent* A, UFGPowerConnectionComponent* B)
+{
+    TSubclassOf<AFGBuildableWire> PowerLineClass = Cache->GetBuildableClass<AFGBuildableWire>(EBuildable::PowerLine);
+    AFGBuildableWire* Wire = World->SpawnActor<AFGBuildableWire>(PowerLineClass, FTransform::Identity);
+    Wire->Connect(A, B);
+    BuildablesForBlueprint.Add(static_cast<AFGBuildable*>(Wire));
+}
+
+UFGPowerConnectionComponent* FBuildPlanGenerator::SpawnPowerPole(FVector Location)
+{
+    const FTransform UnitTransform = MoveTransform(Location);
+    TSubclassOf<AFGBuildablePowerPole> PowerPoleClass =
+        Cache->GetBuildableClass<AFGBuildablePowerPole>(EBuildable::PowerPole);
+    AFGBuildablePowerPole* SpawnedPowerPole = World->SpawnActor<AFGBuildablePowerPole>(PowerPoleClass, UnitTransform);
+    BuildablesForBlueprint.Add(SpawnedPowerPole);
+    UFGPowerConnectionComponent* PolePowerConnection = SpawnedPowerPole->GetPowerConnection(0);
+    return PolePowerConnection;
+}
+
+void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType,
+                                       UFGPowerConnectionComponent*& outPowerConn,
+                                       TArray<UFGFactoryConnectionComponent*>& outBeltConn,
+                                       TArray<UFGPipeConnectionComponent*>& outPipeConn)
+{
+    const bool bFlip = MachineType == EBuildable::OilRefinery;
+    TSubclassOf<AFGBuildableManufacturer> MachineClass =
+        Cache->GetBuildableClass<AFGBuildableManufacturer>(MachineType);
+
+    // Decide flip for certain buildables
+    const FTransform UnitTransform = MoveTransform(Location, bFlip);
+
+    AFGBuildable* SpawnedMachine = World->SpawnActor<AFGBuildable>(MachineClass, UnitTransform);
+    BuildablesForBlueprint.Add(SpawnedMachine);
+
+    UFGPowerConnectionComponent* MachinePowerConn = GetMachinePowerConn(SpawnedMachine);
+
+    outPowerConn = MachinePowerConn;
+    outBeltConn = GetConnections<UFGFactoryConnectionComponent>(SpawnedMachine);
+    outPipeConn = GetConnections<UFGPipeConnectionComponent>(SpawnedMachine);
+}
+
+TArray<UFGFactoryConnectionComponent*> FBuildPlanGenerator::SpawnSplitterOrMerger(FVector Location,
+                                                                                  EBuildable SplitterOrMerger)
+{
+    const bool bFlip = SplitterOrMerger == EBuildable::Merger;
+    TSubclassOf<AFGBuildable> Class = Cache->GetBuildableClass<AFGBuildable>(SplitterOrMerger);
+    const FTransform UnitTransform = MoveTransform(Location, bFlip);
+    AFGBuildable* Spawned = World->SpawnActor<AFGBuildable>(Class, UnitTransform);
+    BuildablesForBlueprint.Add(Spawned);
+    return GetConnections<UFGFactoryConnectionComponent>(Spawned);
+}
+
+void FBuildPlanGenerator::SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To)
+{
+    TSubclassOf<AFGBuildableConveyorBelt> BeltClass =
+        Cache->GetBuildableClass<AFGBuildableConveyorBelt>(EBuildable::Belt);
+
+    // Spawn the initial belt using the test helper
+    AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(BeltClass, From, To);
+    AFGBuildableConveyorBelt* Belt = Cast<AFGBuildableConveyorBelt>(Spawned);
+
+    // Convert world-space positions/tangents into belt local space before resplining
+    const FVector FromLoc = From->GetComponentLocation();
+    const FVector ToLoc = To->GetComponentLocation();
+    const FVector TangentWorld = From->GetConnectorNormal() * FVector::Distance(FromLoc, ToLoc) * 1.5f;
+    const FTransform BeltTransform = Belt->GetActorTransform();
+    const FVector LocalFrom = BeltTransform.InverseTransformPosition(FromLoc);
+    const FVector LocalTo = BeltTransform.InverseTransformPosition(ToLoc);
+    const FVector LocalTangent = BeltTransform.InverseTransformVectorNoScale(TangentWorld);
+
+    TArray<FSplinePointData> SplinePoints;
+    SplinePoints.Add(FSplinePointData(LocalFrom, LocalTangent));
+    SplinePoints.Add(FSplinePointData(LocalTo, LocalTangent));
+
+    AFGBuildableConveyorBelt* ResplinedBelt=AFGBuildableConveyorBelt::Respline(Belt, SplinePoints);
+
+    BuildablesForBlueprint.Add(ResplinedBelt);
+}
+
+TArray<UFGPipeConnectionComponent*> FBuildPlanGenerator::SpawnPipeCross(FVector Location)
+{
+    TSubclassOf<AFGBuildable> Class = Cache->GetBuildableClass<AFGBuildable>(EBuildable::PipeCross);
+    const FTransform UnitTransform = MoveTransform(Location);
+    AFGBuildable* Spawned = World->SpawnActor<AFGBuildable>(Class, UnitTransform);
+    BuildablesForBlueprint.Add(Spawned);
+    return GetConnections<UFGPipeConnectionComponent>(Spawned);
+}
+
+void FBuildPlanGenerator::SpawnPipeAndConnect(UFGPipeConnectionComponent* From, UFGPipeConnectionComponent* To)
+{
+    TSubclassOf<AFGBuildablePipeline> PipeClass = Cache->GetBuildableClass<AFGBuildablePipeline>(EBuildable::Pipeline);
+    AFGBuildable* Spawned = UFGTestBlueprintFunctionLibrary::SpawnSplineBuildable(PipeClass, From, To);
+    BuildablesForBlueprint.Add(Spawned);
 }

@@ -16,16 +16,6 @@ namespace
         {3, EBuildable::Constructor, TOptional<FString>(TEXT("IronPlate"))},
         {2, EBuildable::Constructor, TOptional<FString>(TEXT("Wire"))},
     };
-
-    void SelectRecipeWithBuildGun(UWorld* World)
-    {
-        FString RecipePath = TEXT("/FactorySpawner/Recipe_ConstructorGroup.Recipe_ConstructorGroup_C");
-        TSubclassOf<UFGRecipe> LoadedRecipe = StaticLoadClass(UFGRecipe::StaticClass(), nullptr, *RecipePath);
-        APlayerController* PlayerController = World->GetFirstPlayerController();
-        AFGCharacterPlayer* PlayerCasted = Cast<AFGCharacterPlayer>(PlayerController->GetCharacter());
-        AFGBuildGun* BuildGun = PlayerCasted->GetBuildGun();
-        BuildGun->GotoBuildState(LoadedRecipe);
-    }
 } // namespace
 
 AFactorySpawnerChat* AFactorySpawnerChat::Get(UWorld* World)
@@ -51,9 +41,6 @@ void AFactorySpawnerChat::BeginPlay()
 
     // Reset state for safety
     ResetSubsystemData();
-
-    FBuildPlanGenerator Generator(World, BuildableCache);
-    CurrentBuildPlan = Generator.Generate(DefaultClusterConfig);
 
     FFactorySpawnerModule::ChatLog(World,
                                    "Check out my Planner-Tool https://uniquesimon.github.io/satisfactory-planner/ for "
@@ -110,9 +97,7 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     UWorld* World = GetWorld();
 
     FBuildPlanGenerator Generator(World, BuildableCache);
-    CurrentBuildPlan = Generator.Generate(CommandTokens);
-
-    SelectRecipeWithBuildGun(World);
+    Generator.Generate(CommandTokens);
 
     return EExecutionStatus::COMPLETED;
 }
