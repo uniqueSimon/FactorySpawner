@@ -79,13 +79,13 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     else
     {
         // Auto-detect highest unlocked belt tier
-        BeltTier = BuildableCache->GetHighestUnlockedBeltTier(GetWorld());
+        BeltTier = BuildableCache->GetHighestUnlockedBeltTier(World);
     }
     
     BuildableCache->SetBeltClass(BeltTier);
     
     // Auto-detect pipeline tier
-    int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(GetWorld());
+    int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(World);
     BuildableCache->SetPipelineClass(PipelineTier);
     
     Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier), FLinearColor::Gray);
