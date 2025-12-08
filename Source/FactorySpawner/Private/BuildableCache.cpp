@@ -45,10 +45,6 @@ namespace
         {EBuildable::Lift,
          "/Game/FactoryGame/Buildable/Factory/ConveyorLiftMk1/Build_ConveyorLiftMk1.Build_ConveyorLiftMk1_C"}};
 
-    FString FormatRecipeName(const FString& Recipe)
-    {
-        return FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
-    }
 } // namespace
 
 //-------------------------------------------------
@@ -92,23 +88,24 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     if (CachedRecipeClasses.Contains(Recipe))
         return CachedRecipeClasses[Recipe];
 
+    FString ProducedInName = ProducedIn->GetName();
     if (WrongRecipes.ContainsByPredicate([&](const FWrongRecipe& Item)
-                                         { return Item.Name == Recipe && Item.ProducedIn == ProducedIn->GetName(); }))
+                                         { return Item.Name == Recipe && Item.ProducedIn == ProducedInName; }))
         return nullptr;
 
-    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
     TArray<TSubclassOf<UFGRecipe>> AvailableRecipes;
-    RecipeManager->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
+    AFGRecipeManager::Get(World)->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
 
+    FString FormattedName = FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
     TSubclassOf<UFGRecipe>* FoundRecipe = AvailableRecipes.FindByPredicate(
-        [&](const TSubclassOf<UFGRecipe>& RecipeClass) { return RecipeClass->GetName() == FormatRecipeName(Recipe); });
+        [&](const TSubclassOf<UFGRecipe>& R) { return R->GetName() == FormattedName; });
 
     if (!FoundRecipe)
     {
-        WrongRecipes.Add({Recipe, ProducedIn->GetName()});
+        WrongRecipes.Add({Recipe, ProducedInName});
 
         TArray<FString> Names;
-        for (auto& R : AvailableRecipes)
+        for (const auto& R : AvailableRecipes)
         {
             FString N = R->GetName();
             N.RemoveFromStart(TEXT("Recipe_"));
@@ -116,13 +113,11 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
             Names.Add(N);
         }
 
-        FString Msg = Names.Num() == 0
-                          ? FString::Printf(TEXT("The machine %s has not been unlocked yet!"), *ProducedIn->GetName())
-                          : FString::Printf(TEXT("Following recipes are available for machine %s: %s"),
-                                            *ProducedIn->GetName(), *FString::Join(Names, TEXT(", ")));
+        FString Msg = Names.IsEmpty()
+            ? FString::Printf(TEXT("Machine %s not unlocked yet!"), *ProducedInName)
+            : FString::Printf(TEXT("Available recipes for %s: %s"), *ProducedInName, *FString::Join(Names, TEXT(", ")));
 
-        FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Recipe %s not found for machine %s. %s"), *Recipe,
-                                                              *ProducedIn->GetName(), *Msg));
+        FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Recipe '%s' not found. %s"), *Recipe, *Msg));
         return nullptr;
     }
 
@@ -135,6 +130,5 @@ void UBuildableCache::ClearCache()
     CachedClasses.Empty();
     CachedRecipeClasses.Empty();
     WrongRecipes.Empty();
-
-    UE_LOG(LogFactorySpawner, Log, TEXT("[BuildableCache] Cleared all cached data."));
+    UE_LOG(LogFactorySpawner, Log, TEXT("Cache cleared"));
 }

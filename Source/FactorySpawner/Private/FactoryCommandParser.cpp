@@ -3,25 +3,19 @@
 
 static inline EBuildable ParseBuildableFromString(const FString& Input)
 {
-    FString Normalized = Input.ToLower();
-
-    if (Normalized == "smelter")
-        return EBuildable::Smelter;
-    if (Normalized == "constructor")
-        return EBuildable::Constructor;
-    if (Normalized == "assembler")
-        return EBuildable::Assembler;
-    if (Normalized == "foundry")
-        return EBuildable::Foundry;
-    if (Normalized == "manufacturer")
-        return EBuildable::Manufacturer;
-    if (Normalized == "oilrefinery" || Normalized == "refinery")
-        return EBuildable::OilRefinery;
-    if (Normalized == "blender")
-        return EBuildable::Blender;
-
-    // Optionally handle other buildables or return invalid
-    return EBuildable::Invalid;
+    static const TMap<FString, EBuildable> BuildableMap = {
+        {TEXT("smelter"), EBuildable::Smelter},
+        {TEXT("constructor"), EBuildable::Constructor},
+        {TEXT("assembler"), EBuildable::Assembler},
+        {TEXT("foundry"), EBuildable::Foundry},
+        {TEXT("manufacturer"), EBuildable::Manufacturer},
+        {TEXT("oilrefinery"), EBuildable::OilRefinery},
+        {TEXT("refinery"), EBuildable::OilRefinery},
+        {TEXT("blender"), EBuildable::Blender}
+    };
+    
+    const EBuildable* Found = BuildableMap.Find(Input.ToLower());
+    return Found ? *Found : EBuildable::Invalid;
 }
 
 bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCommandToken>& OutTokens,
@@ -51,16 +45,14 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
             return false;
         }
 
-        // Part 1: count
         int32 Count;
         if (!LexTryParseString(Count, *Parts[0]) || Count <= 0)
         {
-            OutError = FString::Printf(TEXT("Group %d: count must be a positive integer, got '%s'"), g + 1, *Parts[0]);
+            OutError = FString::Printf(TEXT("Group %d: count must be positive, got '%s'"), g + 1, *Parts[0]);
             return false;
         }
 
-        FFactoryCommandToken Token;
-        Token.Count = Count;
+        FFactoryCommandToken Token{Count};
 
         // Part 2: machine type
 
@@ -97,10 +89,9 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
                 return false;
             }
 
-            if (!(ClockSpeed > 0.0f && ClockSpeed < 100.0f))
+            if (ClockSpeed <= 0.0f || ClockSpeed >= 100.0f)
             {
-                OutError =
-                    FString::Printf(TEXT("Group %d: clock percent must be > 0 and < 100, got %f"), g + 1, ClockSpeed);
+                OutError = FString::Printf(TEXT("Group %d: clock must be 0-100, got %.1f"), g + 1, ClockSpeed);
                 return false;
             }
 
