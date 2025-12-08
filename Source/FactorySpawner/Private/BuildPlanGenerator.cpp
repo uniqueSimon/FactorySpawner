@@ -40,16 +40,8 @@ namespace
     template <typename T> TArray<T*> GetConnections(AFGBuildable* Buildable)
     {
         TArray<T*> Out;
-        if (Buildable)
-            Buildable->GetComponents<T>(Out);
+        Buildable->GetComponents<T>(Out);
         return Out;
-    }
-
-    UFGPowerConnectionComponent* GetMachinePowerConn(AFGBuildable* Buildable)
-    {
-        TArray<UFGPowerConnectionComponent*> PowerConnections;
-        Buildable->GetComponents<UFGPowerConnectionComponent>(PowerConnections);
-        return PowerConnections[0];
     }
 
     // Machine configuration map (use helper factories from header)
@@ -516,9 +508,7 @@ void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType,
 
     BuildablesForBlueprint.Add(SpawnedMachine);
 
-    UFGPowerConnectionComponent* MachinePowerConn = GetMachinePowerConn(SpawnedMachine);
-
-    outPowerConn = MachinePowerConn;
+    outPowerConn = GetConnections<UFGPowerConnectionComponent>(SpawnedMachine)[0];
     outBeltConn = GetConnections<UFGFactoryConnectionComponent>(SpawnedMachine);
     outPipeConn = GetConnections<UFGPipeConnectionComponent>(SpawnedMachine);
 }
