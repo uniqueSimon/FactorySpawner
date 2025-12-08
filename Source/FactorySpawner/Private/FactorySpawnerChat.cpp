@@ -40,8 +40,6 @@ void AFactorySpawnerChat::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AFactorySpawnerChat::ResetSubsystemData()
 {
-    CurrentBuildPlan = FBuildPlan();
-
     if (BuildableCache)
     {
         BuildableCache->ClearCache();

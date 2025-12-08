@@ -307,7 +307,7 @@ void FBuildPlanGenerator::SpawnWireAndConnect(UFGPowerConnectionComponent* A, UF
     BuildablesForBlueprint.Add(static_cast<AFGBuildable*>(Wire));
 }
 
-UFGPowerConnectionComponent* FBuildPlanGenerator::SpawnPowerPole(FVector Location)
+UFGPowerConnectionComponent* FBuildPlanGenerator::SpawnPowerPole(const FVector& Location)
 {
     const FTransform UnitTransform = MoveTransform(Location);
     TSubclassOf<AFGBuildablePowerPole> PowerPoleClass =
@@ -318,8 +318,9 @@ UFGPowerConnectionComponent* FBuildPlanGenerator::SpawnPowerPole(FVector Locatio
     return PolePowerConnection;
 }
 
-void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType, const TOptional<FString>& Recipe,
-                                       const TOptional<float>& Underclock, UFGPowerConnectionComponent*& outPowerConn,
+void FBuildPlanGenerator::SpawnMachine(const FVector& Location, EBuildable MachineType,
+                                       const TOptional<FString>& Recipe, const TOptional<float>& Underclock,
+                                       UFGPowerConnectionComponent*& outPowerConn,
                                        TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                                        TArray<UFGPipeConnectionComponent*>& outPipeConn)
 {
@@ -344,7 +345,7 @@ void FBuildPlanGenerator::SpawnMachine(FVector Location, EBuildable MachineType,
     outPipeConn = GetConnections<UFGPipeConnectionComponent>(Machine);
 }
 
-TArray<UFGFactoryConnectionComponent*> FBuildPlanGenerator::SpawnSplitterOrMerger(FVector Location,
+TArray<UFGFactoryConnectionComponent*> FBuildPlanGenerator::SpawnSplitterOrMerger(const FVector& Location,
                                                                                   EBuildable SplitterOrMerger)
 {
     const bool bFlip = SplitterOrMerger == EBuildable::Merger;
@@ -376,7 +377,7 @@ void FBuildPlanGenerator::SpawnBeltAndConnect(UFGFactoryConnectionComponent* Fro
     BuildablesForBlueprint.Add(AFGBuildableConveyorBelt::Respline(Belt, SplinePoints));
 }
 
-TArray<UFGPipeConnectionComponent*> FBuildPlanGenerator::SpawnPipeCross(FVector Location)
+TArray<UFGPipeConnectionComponent*> FBuildPlanGenerator::SpawnPipeCross(const FVector& Location)
 {
     TSubclassOf<AFGBuildable> Class = Cache->GetBuildableClass<AFGBuildable>(EBuildable::PipeCross);
     const FTransform UnitTransform = MoveTransform(Location);
