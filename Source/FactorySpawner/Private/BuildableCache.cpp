@@ -95,9 +95,9 @@ int32 UBuildableCache::GetHighestUnlockedBeltTier(UWorld* World)
             TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_ConveyorBeltMk%d.Recipe_ConveyorBeltMk%d_C"), 
             Tier, Tier);
         
-        TSoftClassPtr<UFGRecipe> RecipePtr(FSoftObjectPath(RecipePath));
-        TSubclassOf<UFGRecipe> RecipeClass = RecipePtr.LoadSynchronous();
-        
+        TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
+        TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
+
         if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
         {
             return Tier;
