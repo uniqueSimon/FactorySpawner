@@ -4,7 +4,6 @@
 #include "BuildPlanTypes.h"
 #include "BuildableCache.generated.h"
 
-class AFactorySpawnerChat;
 class AFGBuildable;
 class AFGBuildableManufacturer;
 class UFGRecipe;
