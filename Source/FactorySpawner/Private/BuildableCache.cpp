@@ -1,6 +1,7 @@
 #include "BuildableCache.h"
 #include "FGRecipeManager.h"
 #include "FGBuildableConveyorBelt.h"
+#include "FGBuildablePipeline.h"
 #include "SoftObjectPtr.h"
 #include "FGBuildableManufacturer.h"
 #include "FactorySpawner.h"
@@ -37,6 +38,7 @@ namespace
         {EBuildable::Belt,
          "/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C"},
         {EBuildable::Pipeline, "/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C"},
+        {EBuildable::Pipeline2, "/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C"},
         {EBuildable::PipeCross, "/Game/FactoryGame/Buildable/Factory/PipeJunction/"
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
         {EBuildable::OilRefinery,
@@ -77,6 +79,70 @@ void UBuildableCache::SetBeltClass(int32 Tier)
     TSubclassOf<AFGBuildableConveyorBelt> LoadedClass = LoadClassSoft<AFGBuildableConveyorBelt>(Path, EBuildable::Belt);
     if (LoadedClass)
         CachedClasses.Add(EBuildable::Belt, LoadedClass);
+}
+
+int32 UBuildableCache::GetHighestUnlockedBeltTier(UWorld* World)
+{
+    if (!World)
+        return 1;
+
+    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
+    if (!RecipeManager)
+        return 1;
+
+    // Check belt tiers from 6 down to 1
+    for (int32 Tier = 6; Tier >= 1; --Tier)
+    {
+        FString RecipePath = FString::Printf(
+            TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_ConveyorBeltMk%d.Recipe_ConveyorBeltMk%d_C"), 
+            Tier, Tier);
+        
+        TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
+        TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
+
+        if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
+        {
+            return Tier;
+        }
+    }
+
+    // Default to Mk1 if nothing found
+    return 1;
+}
+
+void UBuildableCache::SetPipelineClass(int32 Tier)
+{
+    EBuildable PipeType = (Tier == 2) ? EBuildable::Pipeline2 : EBuildable::Pipeline;
+    FString Path = (Tier == 2)
+        ? TEXT("/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C")
+        : TEXT("/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C");
+    
+    TSubclassOf<AFGBuildablePipeline> LoadedClass = LoadClassSoft<AFGBuildablePipeline>(Path, PipeType);
+    if (LoadedClass)
+        CachedClasses.Add(EBuildable::Pipeline, LoadedClass);
+}
+
+int32 UBuildableCache::GetHighestUnlockedPipelineTier(UWorld* World)
+{
+    if (!World)
+        return 1;
+
+    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
+    if (!RecipeManager)
+        return 1;
+
+    // Check Mk2 first
+    FString RecipePath = TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_PipelineMk2.Recipe_PipelineMk2_C");
+    TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
+    TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
+    
+    if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
+    {
+        return 2;
+    }
+
+    // Default to Mk1
+    return 1;
 }
 
 //-------------------------------------------------

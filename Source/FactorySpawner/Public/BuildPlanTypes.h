@@ -19,6 +19,7 @@ enum class EBuildable : uint8
     Merger,
     PowerPole,
     Pipeline,
+    Pipeline2,
     PipeCross,
 
     // Transport
@@ -35,4 +36,5 @@ struct FFactoryCommandToken
     EBuildable MachineType;
     TOptional<FString> Recipe;
     TOptional<float> ClockPercent; // percent value (e.g. 75.5)
+    TOptional<int32> BeltTier;     // optional belt tier override (1-6 for Mk1-Mk6)
 };

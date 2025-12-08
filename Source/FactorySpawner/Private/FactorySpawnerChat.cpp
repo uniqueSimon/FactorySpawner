@@ -51,7 +51,7 @@ AFactorySpawnerChat::AFactorySpawnerChat()
     CommandName = TEXT("FactorySpawner");
     MinNumberOfArguments = 2;
     Usage = FText::FromString("Usage: /FactorySpawner <number> <machine type 1> <recipe 1>, <number> <machine type 2> "
-                              "<recipe 2>; /FactorySpawner BeltTier <number>");
+                              "<recipe 2>, beltTier <number>");
 }
 
 EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSender* Sender,
@@ -59,9 +59,6 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
 {
     FString Joined = FString::Join(Arguments, TEXT(" "));
     Sender->SendChatMessage(FString::Printf(TEXT("/FactorySpawner %s"), *Joined), FLinearColor::Green);
-
-    if (Arguments[0].Equals(TEXT("BeltTier"), ESearchCase::IgnoreCase))
-        return HandleBeltTierCommand(Arguments[1], Sender);
 
     TArray<FFactoryCommandToken> CommandTokens;
     FString Error;
@@ -72,19 +69,27 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
         return EExecutionStatus::BAD_ARGUMENTS;
     }
 
+    // Determine belt tier to use
+    int32 BeltTier = 1;
+    if (CommandTokens.Num() > 0 && CommandTokens[0].BeltTier.IsSet())
+    {
+        // Use explicitly provided belt tier from inline parameter
+        BeltTier = CommandTokens[0].BeltTier.GetValue();
+    }
+    else
+    {
+        // Auto-detect highest unlocked belt tier
+        BeltTier = BuildableCache->GetHighestUnlockedBeltTier(World);
+    }
+    
+    BuildableCache->SetBeltClass(BeltTier);
+    
+    // Auto-detect pipeline tier
+    int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(World);
+    BuildableCache->SetPipelineClass(PipelineTier);
+    
+    Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier), FLinearColor::Gray);
+
     FBuildPlanGenerator(GetWorld(), BuildableCache).Generate(CommandTokens);
     return EExecutionStatus::COMPLETED;
-}
-
-EExecutionStatus AFactorySpawnerChat::HandleBeltTierCommand(const FString& Input, UCommandSender* Sender)
-{
-    int32 Tier;
-    if (LexTryParseString(Tier, *Input) && Tier >= 1 && Tier <= 8)
-    {
-        BuildableCache->SetBeltClass(Tier);
-        Sender->SendChatMessage(FString::Printf(TEXT("Belt Tier: Mk%d"), Tier), FLinearColor::Green);
-        return EExecutionStatus::COMPLETED;
-    }
-    Sender->SendChatMessage(TEXT("BeltTier must be 1-8"));
-    return EExecutionStatus::BAD_ARGUMENTS;
 }
