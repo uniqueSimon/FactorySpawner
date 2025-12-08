@@ -37,6 +37,11 @@ class FACTORYSPAWNER_API UBuildableCache : public UObject
     
     // Get the highest unlocked belt tier (1-6), defaults to 1 if none found
     int32 GetHighestUnlockedBeltTier(UWorld* World);
+    
+    void SetPipelineClass(int32 Tier);
+    
+    // Get the highest unlocked pipeline tier (1-2), defaults to 1 if none found
+    int32 GetHighestUnlockedPipelineTier(UWorld* World);
 
     // Recipe loader
     TSubclassOf<UFGRecipe> GetRecipeClass(const FString& Recipe, TSubclassOf<AFGBuildableManufacturer> ProducedIn,

@@ -1,6 +1,7 @@
 #include "BuildableCache.h"
 #include "FGRecipeManager.h"
 #include "FGBuildableConveyorBelt.h"
+#include "FGBuildablePipeline.h"
 #include "SoftObjectPtr.h"
 #include "FGBuildableManufacturer.h"
 #include "FactorySpawner.h"
@@ -37,6 +38,7 @@ namespace
         {EBuildable::Belt,
          "/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C"},
         {EBuildable::Pipeline, "/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C"},
+        {EBuildable::Pipeline2, "/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C"},
         {EBuildable::PipeCross, "/Game/FactoryGame/Buildable/Factory/PipeJunction/"
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
         {EBuildable::OilRefinery,
@@ -105,6 +107,41 @@ int32 UBuildableCache::GetHighestUnlockedBeltTier(UWorld* World)
     }
 
     // Default to Mk1 if nothing found
+    return 1;
+}
+
+void UBuildableCache::SetPipelineClass(int32 Tier)
+{
+    EBuildable PipeType = (Tier == 2) ? EBuildable::Pipeline2 : EBuildable::Pipeline;
+    FString Path = (Tier == 2)
+        ? TEXT("/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C")
+        : TEXT("/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C");
+    
+    TSubclassOf<AFGBuildablePipeline> LoadedClass = LoadClassSoft<AFGBuildablePipeline>(Path, PipeType);
+    if (LoadedClass)
+        CachedClasses.Add(EBuildable::Pipeline, LoadedClass);
+}
+
+int32 UBuildableCache::GetHighestUnlockedPipelineTier(UWorld* World)
+{
+    if (!World)
+        return 1;
+
+    AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
+    if (!RecipeManager)
+        return 1;
+
+    // Check Mk2 first
+    FString RecipePath = TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_PipelineMk2.Recipe_PipelineMk2_C");
+    TSoftClassPtr<UFGRecipe> RecipePtr(FSoftObjectPath(RecipePath));
+    TSubclassOf<UFGRecipe> RecipeClass = RecipePtr.LoadSynchronous();
+    
+    if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
+    {
+        return 2;
+    }
+
+    // Default to Mk1
     return 1;
 }
 

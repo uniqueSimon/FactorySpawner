@@ -83,7 +83,12 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     }
     
     BuildableCache->SetBeltClass(BeltTier);
-    Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d"), BeltTier), FLinearColor::Gray);
+    
+    // Auto-detect pipeline tier
+    int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(GetWorld());
+    BuildableCache->SetPipelineClass(PipelineTier);
+    
+    Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier), FLinearColor::Gray);
 
     FBuildPlanGenerator(GetWorld(), BuildableCache).Generate(CommandTokens);
     return EExecutionStatus::COMPLETED;

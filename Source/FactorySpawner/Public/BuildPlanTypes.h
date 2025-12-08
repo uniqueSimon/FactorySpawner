@@ -19,6 +19,7 @@ enum class EBuildable : uint8
     Merger,
     PowerPole,
     Pipeline,
+    Pipeline2,
     PipeCross,
 
     // Transport
