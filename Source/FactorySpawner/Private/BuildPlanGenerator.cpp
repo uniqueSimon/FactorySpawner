@@ -134,32 +134,36 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
             Cache->GetBuildableClass<AFGBuildableManufacturer>(RowConfig.MachineType);
         TSubclassOf<UFGRecipe> RecipeClass = Cache->GetRecipeClass(RowConfig.Recipe.GetValue(), MachineClass, World);
 
-        int32 SolidIn = 0, LiquidIn = 0, SolidOut = 0, LiquidOut = 0;
-        for (const FItemAmount& Item : RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients())
-            UFGItemDescriptor::GetForm(Item.ItemClass) == EResourceForm::RF_SOLID ? ++SolidIn : ++LiquidIn;
-        for (const FItemAmount& Item : RecipeClass->GetDefaultObject<UFGRecipe>()->GetProducts())
-            UFGItemDescriptor::GetForm(Item.ItemClass) == EResourceForm::RF_SOLID ? ++SolidOut : ++LiquidOut;
+        if (RecipeClass)
+        {
 
-        if (RowConfig.MachineType == EBuildable::Manufacturer && SolidIn == 3)
-            InputVariant = 1;
-        else if (RowConfig.MachineType == EBuildable::OilRefinery)
-        {
-            InputVariant = (SolidIn == 1 && LiquidIn == 0) ? 1 : (SolidIn == 0 && LiquidIn == 1) ? 2 : 0;
-            OutputVariant = (SolidOut == 1 && LiquidOut == 0) ? 1 : (SolidOut == 0 && LiquidOut == 1) ? 2 : 0;
-        }
-        else if (RowConfig.MachineType == EBuildable::Blender)
-        {
-            if (SolidIn == 2 && LiquidIn == 1)
+            int32 SolidIn = 0, LiquidIn = 0, SolidOut = 0, LiquidOut = 0;
+            for (const FItemAmount& Item : RecipeClass->GetDefaultObject<UFGRecipe>()->GetIngredients())
+                UFGItemDescriptor::GetForm(Item.ItemClass) == EResourceForm::RF_SOLID ? ++SolidIn : ++LiquidIn;
+            for (const FItemAmount& Item : RecipeClass->GetDefaultObject<UFGRecipe>()->GetProducts())
+                UFGItemDescriptor::GetForm(Item.ItemClass) == EResourceForm::RF_SOLID ? ++SolidOut : ++LiquidOut;
+
+            if (RowConfig.MachineType == EBuildable::Manufacturer && SolidIn == 3)
                 InputVariant = 1;
-            else if (SolidIn == 1 && LiquidIn == 2)
-                InputVariant = 2;
-            else if (SolidIn == 1 && LiquidIn == 1)
-                InputVariant = 3;
-            else if (SolidIn == 0 && LiquidIn == 2)
-                InputVariant = 4;
-            else if (SolidIn == 0 && LiquidIn == 1)
-                InputVariant = 5;
-            OutputVariant = (SolidOut == 1 && LiquidOut == 0) ? 1 : (SolidOut == 0 && LiquidOut == 1) ? 2 : 0;
+            else if (RowConfig.MachineType == EBuildable::OilRefinery)
+            {
+                InputVariant = (SolidIn == 1 && LiquidIn == 0) ? 1 : (SolidIn == 0 && LiquidIn == 1) ? 2 : 0;
+                OutputVariant = (SolidOut == 1 && LiquidOut == 0) ? 1 : (SolidOut == 0 && LiquidOut == 1) ? 2 : 0;
+            }
+            else if (RowConfig.MachineType == EBuildable::Blender)
+            {
+                if (SolidIn == 2 && LiquidIn == 1)
+                    InputVariant = 1;
+                else if (SolidIn == 1 && LiquidIn == 2)
+                    InputVariant = 2;
+                else if (SolidIn == 1 && LiquidIn == 1)
+                    InputVariant = 3;
+                else if (SolidIn == 0 && LiquidIn == 2)
+                    InputVariant = 4;
+                else if (SolidIn == 0 && LiquidIn == 1)
+                    InputVariant = 5;
+                OutputVariant = (SolidOut == 1 && LiquidOut == 0) ? 1 : (SolidOut == 0 && LiquidOut == 1) ? 2 : 0;
+            }
         }
     }
 
