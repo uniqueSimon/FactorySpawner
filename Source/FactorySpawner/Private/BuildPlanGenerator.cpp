@@ -11,6 +11,7 @@
 #include "FGBuildablePowerPole.h"
 #include "FGFactoryConnectionComponent.h"
 #include "FGBuildableConveyorBelt.h"
+#include "FGBuildableConveyorLift.h"
 #include "FGBuildablePipeline.h"
 #include "FGPipeConnectionComponent.h"
 #include "FGRecipe.h"
@@ -103,6 +104,24 @@ void FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterCo
 
     for (int32 i = 0; i < ClusterConfig.Num(); ++i)
         ProcessRow(ClusterConfig[i], i);
+
+    // Test: Spawn elevated splitter and constructor connected via lift
+    FVector TestSplitterLoc = FVector(-1000, 0, 100 + 400);  // Elevated splitter
+    FVector TestMergerLoc = FVector(-1000, 2000, 100 + 400); // Elevated splitter
+    FVector TestConstructorLoc = FVector(-1000, 1000, 0);    // Constructor on ground
+
+    TArray<UFGFactoryConnectionComponent*> TestSplitter = SpawnSplitterOrMerger(TestSplitterLoc, EBuildable::Splitter);
+    TArray<UFGFactoryConnectionComponent*> TestMerger = SpawnSplitterOrMerger(TestMergerLoc, EBuildable::Merger);
+
+    UFGPowerConnectionComponent* TestPowerConn;
+    TArray<UFGFactoryConnectionComponent*> TestBeltConn;
+    TArray<UFGPipeConnectionComponent*> TestPipeConn;
+    SpawnMachine(TestConstructorLoc, EBuildable::Constructor, TOptional<FString>(), TOptional<float>(), TestPowerConn,
+                 TestBeltConn, TestPipeConn);
+
+    // Connect splitter output (index 0) to constructor input via lift
+    SpawnLiftAndConnect(TestSplitter[3], TestBeltConn[1]);
+    SpawnLiftAndConnect(TestBeltConn[0], TestMerger[2]);
 
     AFGBlueprintSubsystem* BlueprintSubsystem = AFGBlueprintSubsystem::Get(World);
     UFGBlueprintDescriptor* ExistingDescriptor =
@@ -379,6 +398,40 @@ void FBuildPlanGenerator::SpawnBeltAndConnect(UFGFactoryConnectionComponent* Fro
                                       BeltTransform.InverseTransformVectorNoScale(TangentWorld)));
 
     BuildablesForBlueprint.Add(AFGBuildableConveyorBelt::Respline(Belt, SplinePoints));
+}
+
+void FBuildPlanGenerator::SpawnLiftAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To)
+{
+    TSubclassOf<AFGBuildableConveyorLift> LiftClass =
+        Cache->GetBuildableClass<AFGBuildableConveyorLift>(EBuildable::Lift);
+
+    // Get the connection locations
+    FVector FromLoc = From->GetComponentLocation();
+    FVector ToLoc = To->GetComponentLocation();
+
+    FTransform InputTransform(FRotator(0, 270, 0), FromLoc + FVector(0, 300, 0));
+
+    AFGBuildableConveyorLift* Lift = World->SpawnActor<AFGBuildableConveyorLift>(LiftClass, InputTransform);
+
+    // Calculate the top transform relative to the lift's base
+    FVector OutputHeightOffset(0, 0, ToLoc.Z - FromLoc.Z);
+    FTransform TopTransform(FRotator(0.0f, 180.0f, 0.0f), OutputHeightOffset);
+
+    // Use Unreal's reflection system to set the private mTopTransform property
+    FProperty* TopTransformProp = Lift->GetClass()->FindPropertyByName(TEXT("mTopTransform"));
+    FStructProperty* StructProp = CastField<FStructProperty>(TopTransformProp);
+    if (StructProp && StructProp->Struct == TBaseStructure<FTransform>::Get())
+    {
+        void* PropertyAddress = StructProp->ContainerPtrToValuePtr<void>(Lift);
+        StructProp->CopyCompleteValue(PropertyAddress, &TopTransform);
+    }
+
+    TArray<UFGFactoryConnectionComponent*> LiftConnections = GetConnections<UFGFactoryConnectionComponent>(Lift);
+    From->SetConnection(LiftConnections[0]);
+    LiftConnections[1]->SetConnection(To);
+    Lift->SetupConnections();
+
+    BuildablesForBlueprint.Add(Lift);
 }
 
 TArray<UFGPipeConnectionComponent*> FBuildPlanGenerator::SpawnPipeCross(const FVector& Location)

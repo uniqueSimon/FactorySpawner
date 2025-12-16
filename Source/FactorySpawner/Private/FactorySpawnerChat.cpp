@@ -26,7 +26,8 @@ void AFactorySpawnerChat::BeginPlay()
         BuildableCache = NewObject<UBuildableCache>(this);
 
     ResetSubsystemData();
-    FFactorySpawnerModule::ChatLog(GetWorld(),
+    FFactorySpawnerModule::ChatLog(
+        GetWorld(),
         TEXT("FactorySpawner loaded! Tool to generate commands: https://uniquesimon.github.io/satisfactory-planner/"));
 }
 
@@ -55,7 +56,8 @@ AFactorySpawnerChat::AFactorySpawnerChat()
 }
 
 EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSender* Sender,
-                                                                 const TArray<FString>& Arguments, const FString& Label)
+                                                                    const TArray<FString>& Arguments,
+                                                                    const FString& Label)
 {
     FString Joined = FString::Join(Arguments, TEXT(" "));
     Sender->SendChatMessage(FString::Printf(TEXT("/FactorySpawner %s"), *Joined), FLinearColor::Green);
@@ -69,6 +71,8 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
         return EExecutionStatus::BAD_ARGUMENTS;
     }
 
+    UWorld* World = GetWorld();
+
     // Determine belt tier to use
     int32 BeltTier = 1;
     if (CommandTokens.Num() > 0 && CommandTokens[0].BeltTier.IsSet())
@@ -81,15 +85,16 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
         // Auto-detect highest unlocked belt tier
         BeltTier = BuildableCache->GetHighestUnlockedBeltTier(World);
     }
-    
+
     BuildableCache->SetBeltClass(BeltTier);
-    
+
     // Auto-detect pipeline tier
     int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(World);
     BuildableCache->SetPipelineClass(PipelineTier);
-    
-    Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier), FLinearColor::Gray);
 
-    FBuildPlanGenerator(GetWorld(), BuildableCache).Generate(CommandTokens);
+    Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier),
+                            FLinearColor::Gray);
+
+    FBuildPlanGenerator(World, BuildableCache).Generate(CommandTokens);
     return EExecutionStatus::COMPLETED;
 }
