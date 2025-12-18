@@ -49,39 +49,39 @@ namespace
                            {MakeMachineConnections(1100, {MakeConnector(0, 0)})})},
         {EBuildable::OilRefinery,
          MakeMachineConfig(1000,
-                           {MakeMachineConnections(2000, {MakeConnector(0, -200, 400)}, {MakeConnector(1, 200)}),
+                           {MakeMachineConnections(1700, {MakeConnector(0, -200, 400)}, {MakeConnector(1, 200)}),
                             MakeMachineConnections(1500, {MakeConnector(0, -200)}, {}),
                             MakeMachineConnections(1500, {}, {MakeConnector(1, 200)})},
-                           {MakeMachineConnections(2000, {MakeConnector(1, -200, 400)}, {MakeConnector(0, 200)}),
+                           {MakeMachineConnections(1700, {MakeConnector(1, -200, 400)}, {MakeConnector(0, 200)}),
                             MakeMachineConnections(1500, {MakeConnector(1, -200)}, {}),
                             MakeMachineConnections(1500, {}, {MakeConnector(0, 200)})})},
         {EBuildable::Blender,
          MakeMachineConfig(
              1800,
 
-             {/*2S,2L*/ MakeMachineConnections(2400, {MakeConnector(1, 200, 600), MakeConnector(2, 600, 800)},
+             {/*2S,2L*/ MakeMachineConnections(1500, {MakeConnector(1, 200, 600), MakeConnector(2, 600, 800)},
                                                {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
               /*2S,1L*/
-              MakeMachineConnections(2100, {MakeConnector(1, 200, 400), MakeConnector(2, 600, 600)},
+              MakeMachineConnections(1500, {MakeConnector(1, 200, 400), MakeConnector(2, 600, 600)},
                                      {MakeConnector(2, -600)}),
               /*1S,2L*/
-              MakeMachineConnections(2100, {MakeConnector(1, 200, 600)},
+              MakeMachineConnections(1500, {MakeConnector(1, 200, 600)},
                                      {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
               /*1S,1L*/
-              MakeMachineConnections(1800, {MakeConnector(1, 200, 400)}, {MakeConnector(2, -600)}),
+              MakeMachineConnections(1500, {MakeConnector(1, 200, 400)}, {MakeConnector(2, -600)}),
               /*0S,2L*/
               MakeMachineConnections(1400, {}, {MakeConnector(2, -600), MakeConnector(0, -200, 200)}),
               /*0S,1L*/
               MakeMachineConnections(1200, {}, {MakeConnector(2, -600)})},
 
-             {MakeMachineConnections(1800, {MakeConnector(0, -200, 400)}, {MakeConnector(1, -600)}),
+             {MakeMachineConnections(1500, {MakeConnector(0, -200, 400)}, {MakeConnector(1, -600)}),
               MakeMachineConnections(1200, {MakeConnector(0, -200)}, {}),
               MakeMachineConnections(1200, {}, {MakeConnector(1, -600)})})},
         {EBuildable::Manufacturer,
          MakeMachineConfig(1800,
-                           {MakeMachineConnections(2300, {MakeConnector(4, -600), MakeConnector(2, -200, 200),
+                           {MakeMachineConnections(1700, {MakeConnector(4, -600), MakeConnector(2, -200, 200),
                                                           MakeConnector(1, 200, 400), MakeConnector(0, 600, 600)}),
-                            MakeMachineConnections(2000, {MakeConnector(4, -600), MakeConnector(2, -200, 200),
+                            MakeMachineConnections(1700, {MakeConnector(4, -600), MakeConnector(2, -200, 200),
                                                           MakeConnector(1, 200, 400)})},
                            {MakeMachineConnections(1300, {MakeConnector(3, 0)})})},
     };
@@ -104,24 +104,6 @@ void FBuildPlanGenerator::Generate(const TArray<FFactoryCommandToken>& ClusterCo
 
     for (int32 i = 0; i < ClusterConfig.Num(); ++i)
         ProcessRow(ClusterConfig[i], i);
-
-    // Test: Spawn elevated splitter and constructor connected via lift
-    FVector TestSplitterLoc = FVector(-1000, 0, 100 + 400);  // Elevated splitter
-    FVector TestMergerLoc = FVector(-1000, 2000, 100 + 400); // Elevated splitter
-    FVector TestConstructorLoc = FVector(-1000, 1000, 0);    // Constructor on ground
-
-    TArray<UFGFactoryConnectionComponent*> TestSplitter = SpawnSplitterOrMerger(TestSplitterLoc, EBuildable::Splitter);
-    TArray<UFGFactoryConnectionComponent*> TestMerger = SpawnSplitterOrMerger(TestMergerLoc, EBuildable::Merger);
-
-    UFGPowerConnectionComponent* TestPowerConn;
-    TArray<UFGFactoryConnectionComponent*> TestBeltConn;
-    TArray<UFGPipeConnectionComponent*> TestPipeConn;
-    SpawnMachine(TestConstructorLoc, EBuildable::Constructor, TOptional<FString>(), TOptional<float>(), TestPowerConn,
-                 TestBeltConn, TestPipeConn);
-
-    // Connect splitter output (index 0) to constructor input via lift
-    SpawnLiftAndConnect(TestSplitter[3], TestBeltConn[1]);
-    SpawnLiftAndConnect(TestBeltConn[0], TestMerger[2]);
 
     AFGBlueprintSubsystem* BlueprintSubsystem = AFGBlueprintSubsystem::Get(World);
     UFGBlueprintDescriptor* ExistingDescriptor =
@@ -273,7 +255,7 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
                 SpawnBeltAndConnect(Prev, Splitter[1]);
         }
         ConnectionQueue.Input.Enqueue(Splitter[0]);
-        SpawnBeltAndConnect(Splitter[3], MachineBeltConn[Conn.Index]);
+        SpawnLiftOrBeltAndConnect(Conn.LocationY, Splitter[3], MachineBeltConn[Conn.Index]);
     }
 
     for (const FConnector& Conn : OutputConnections.Belt)
@@ -288,7 +270,7 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
                 SpawnBeltAndConnect(Merger[1], Prev);
         }
         ConnectionQueue.Output.Enqueue(Merger[0]);
-        SpawnBeltAndConnect(MachineBeltConn[Conn.Index], Merger[2]);
+        SpawnLiftOrBeltAndConnect(Conn.LocationY, MachineBeltConn[Conn.Index], Merger[2]);
     }
 
     for (const FConnector& Conn : InputConnections.Pipe)
@@ -377,6 +359,12 @@ TArray<UFGFactoryConnectionComponent*> FBuildPlanGenerator::SpawnSplitterOrMerge
     AFGBuildable* Spawned = World->SpawnActor<AFGBuildable>(Class, UnitTransform);
     BuildablesForBlueprint.Add(Spawned);
     return GetConnections<UFGFactoryConnectionComponent>(Spawned);
+}
+
+void FBuildPlanGenerator::SpawnLiftOrBeltAndConnect(float height, UFGFactoryConnectionComponent* From,
+                                                    UFGFactoryConnectionComponent* To)
+{
+    height < 400 ? SpawnBeltAndConnect(From, To) : SpawnLiftAndConnect(From, To);
 }
 
 void FBuildPlanGenerator::SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To)

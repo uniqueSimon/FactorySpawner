@@ -86,6 +86,8 @@ class FBuildPlanGenerator
                       TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                       TArray<UFGPipeConnectionComponent*>& outPipeConn);
     TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(const FVector& Location, EBuildable SplitterOrMerger);
+    void SpawnLiftOrBeltAndConnect(float height, UFGFactoryConnectionComponent* From,
+                                   UFGFactoryConnectionComponent* To);
     void SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
     void SpawnLiftAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
     TArray<UFGPipeConnectionComponent*> SpawnPipeCross(const FVector& Location);

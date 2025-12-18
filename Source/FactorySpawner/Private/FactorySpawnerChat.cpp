@@ -87,6 +87,7 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     }
 
     BuildableCache->SetBeltClass(BeltTier);
+    BuildableCache->SetLiftClass(BeltTier);
 
     // Auto-detect pipeline tier
     int32 PipelineTier = BuildableCache->GetHighestUnlockedPipelineTier(World);

@@ -1,6 +1,7 @@
 #include "BuildableCache.h"
 #include "FGRecipeManager.h"
 #include "FGBuildableConveyorBelt.h"
+#include "FGBuildableConveyorLift.h"
 #include "FGBuildablePipeline.h"
 #include "SoftObjectPtr.h"
 #include "FGBuildableManufacturer.h"
@@ -35,17 +36,11 @@ namespace
         {EBuildable::PowerPole,
          "/Game/FactoryGame/Buildable/Factory/PowerPoleMk1/Build_PowerPoleMk1.Build_PowerPoleMk1_C"},
         {EBuildable::PowerLine, "/Game/FactoryGame/Buildable/Factory/PowerLine/Build_PowerLine.Build_PowerLine_C"},
-        {EBuildable::Belt,
-         "/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C"},
-        {EBuildable::Pipeline, "/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C"},
-        {EBuildable::Pipeline2, "/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C"},
         {EBuildable::PipeCross, "/Game/FactoryGame/Buildable/Factory/PipeJunction/"
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
         {EBuildable::OilRefinery,
          "/Game/FactoryGame/Buildable/Factory/OilRefinery/Build_OilRefinery.Build_OilRefinery_C"},
-        {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"},
-        {EBuildable::Lift,
-         "/Game/FactoryGame/Buildable/Factory/ConveyorLiftMk1/Build_ConveyorLiftMk1.Build_ConveyorLiftMk1_C"}};
+        {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"}};
 
 } // namespace
 
@@ -81,22 +76,26 @@ void UBuildableCache::SetBeltClass(int32 Tier)
         CachedClasses.Add(EBuildable::Belt, LoadedClass);
 }
 
+void UBuildableCache::SetLiftClass(int32 Tier)
+{
+    FString Path = FString::Printf(
+        TEXT("/Game/FactoryGame/Buildable/Factory/ConveyorLiftMk%d/Build_ConveyorLiftMk%d.Build_ConveyorLiftMk%d_C"),
+        Tier, Tier, Tier);
+    TSubclassOf<AFGBuildableConveyorLift> LoadedClass = LoadClassSoft<AFGBuildableConveyorLift>(Path, EBuildable::Lift);
+    if (LoadedClass)
+        CachedClasses.Add(EBuildable::Lift, LoadedClass);
+}
+
 int32 UBuildableCache::GetHighestUnlockedBeltTier(UWorld* World)
 {
-    if (!World)
-        return 1;
-
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
-    if (!RecipeManager)
-        return 1;
 
     // Check belt tiers from 6 down to 1
     for (int32 Tier = 6; Tier >= 1; --Tier)
     {
         FString RecipePath = FString::Printf(
-            TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_ConveyorBeltMk%d.Recipe_ConveyorBeltMk%d_C"), 
-            Tier, Tier);
-        
+            TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_ConveyorBeltMk%d.Recipe_ConveyorBeltMk%d_C"), Tier, Tier);
+
         TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
         TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
 
@@ -114,9 +113,9 @@ void UBuildableCache::SetPipelineClass(int32 Tier)
 {
     EBuildable PipeType = (Tier == 2) ? EBuildable::Pipeline2 : EBuildable::Pipeline;
     FString Path = (Tier == 2)
-        ? TEXT("/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C")
-        : TEXT("/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C");
-    
+                       ? TEXT("/Game/FactoryGame/Buildable/Factory/PipelineMk2/Build_PipelineMK2.Build_PipelineMK2_C")
+                       : TEXT("/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C");
+
     TSubclassOf<AFGBuildablePipeline> LoadedClass = LoadClassSoft<AFGBuildablePipeline>(Path, PipeType);
     if (LoadedClass)
         CachedClasses.Add(EBuildable::Pipeline, LoadedClass);
@@ -124,18 +123,13 @@ void UBuildableCache::SetPipelineClass(int32 Tier)
 
 int32 UBuildableCache::GetHighestUnlockedPipelineTier(UWorld* World)
 {
-    if (!World)
-        return 1;
-
     AFGRecipeManager* RecipeManager = AFGRecipeManager::Get(World);
-    if (!RecipeManager)
-        return 1;
 
     // Check Mk2 first
     FString RecipePath = TEXT("/Game/FactoryGame/Recipes/Buildings/Recipe_PipelineMk2.Recipe_PipelineMk2_C");
     TSoftClassPtr<UFGRecipe> SoftClass(RecipePath);
     TSubclassOf<UFGRecipe> RecipeClass = SoftClass.LoadSynchronous();
-    
+
     if (RecipeClass && RecipeManager->IsRecipeAvailable(RecipeClass))
     {
         return 2;
@@ -163,8 +157,8 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     AFGRecipeManager::Get(World)->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
 
     FString FormattedName = FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
-    TSubclassOf<UFGRecipe>* FoundRecipe = AvailableRecipes.FindByPredicate(
-        [&](const TSubclassOf<UFGRecipe>& R) { return R->GetName() == FormattedName; });
+    TSubclassOf<UFGRecipe>* FoundRecipe = AvailableRecipes.FindByPredicate([&](const TSubclassOf<UFGRecipe>& R)
+                                                                           { return R->GetName() == FormattedName; });
 
     if (!FoundRecipe)
     {
@@ -179,9 +173,9 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
             Names.Add(N);
         }
 
-        FString Msg = Names.IsEmpty()
-            ? FString::Printf(TEXT("Machine %s not unlocked yet!"), *ProducedInName)
-            : FString::Printf(TEXT("Available recipes for %s: %s"), *ProducedInName, *FString::Join(Names, TEXT(", ")));
+        FString Msg = Names.IsEmpty() ? FString::Printf(TEXT("Machine %s not unlocked yet!"), *ProducedInName)
+                                      : FString::Printf(TEXT("Available recipes for %s: %s"), *ProducedInName,
+                                                        *FString::Join(Names, TEXT(", ")));
 
         FFactorySpawnerModule::ChatLog(World, FString::Printf(TEXT("Recipe '%s' not found. %s"), *Recipe, *Msg));
         return nullptr;
