@@ -11,9 +11,15 @@ static inline EBuildable ParseBuildableFromString(const FString& Input)
         {TEXT("manufacturer"), EBuildable::Manufacturer},
         {TEXT("oilrefinery"), EBuildable::OilRefinery},
         {TEXT("refinery"), EBuildable::OilRefinery},
-        {TEXT("blender"), EBuildable::Blender}
-    };
-    
+        {TEXT("blender"), EBuildable::Blender},
+        {TEXT("converter"), EBuildable::Converter},
+        {TEXT("particleaccelerator"), EBuildable::ParticleAccelerator},
+        {TEXT("accelerator"), EBuildable::ParticleAccelerator},
+        {TEXT("hadroncollider"), EBuildable::ParticleAccelerator},
+        {TEXT("quantumencoder"), EBuildable::QuantumEncoder},
+        {TEXT("encoder"), EBuildable::QuantumEncoder},
+        {TEXT("packager"), EBuildable::Packager}};
+
     const EBuildable* Found = BuildableMap.Find(Input.ToLower());
     return Found ? *Found : EBuildable::Invalid;
 }
@@ -22,25 +28,25 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
                                          FString& OutError)
 {
     OutTokens.Reset();
-    
+
     // Check for optional beltTier parameter at the end
     TOptional<int32> BeltTier;
     FString CommandInput = Input;
-    
+
     // Look for "beltTier N" pattern (case-insensitive)
     int32 BeltTierIndex = CommandInput.Find(TEXT("beltTier"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
     if (BeltTierIndex != INDEX_NONE)
     {
         // Extract everything after "beltTier"
         FString BeltTierPart = CommandInput.RightChop(BeltTierIndex + 8).TrimStartAndEnd(); // 8 = len("beltTier")
-        
+
         // Check if there's a comma before beltTier
         FString BeforeBeltTier = CommandInput.Left(BeltTierIndex).TrimEnd();
         if (BeforeBeltTier.EndsWith(TEXT(",")))
         {
             BeforeBeltTier = BeforeBeltTier.LeftChop(1).TrimEnd();
         }
-        
+
         // Parse the tier number
         int32 Tier;
         if (!LexTryParseString(Tier, *BeltTierPart) || Tier < 1 || Tier > 5)
@@ -48,7 +54,7 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
             OutError = FString::Printf(TEXT("beltTier must be 1-6, got '%s'"), *BeltTierPart);
             return false;
         }
-        
+
         BeltTier = Tier;
         CommandInput = BeforeBeltTier;
     }
@@ -89,8 +95,9 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
         EBuildable EnumVal = ParseBuildableFromString(Parts[1]);
         if (EnumVal == EBuildable::Invalid)
         {
-            OutError = FString::Printf(TEXT("Group %d: unknown machine type '%s'. Choose: Smelter, Constructor, "
-                                            "Assembler, Foundry or Manufacturer!"),
+            OutError = FString::Printf(TEXT("Group %d: unknown machine type '%s'. Choose: Constructor, "
+                                            "Assembler, Manufacturer, Packager, Refinery, Blender, "
+                                            "ParticleAccelerator, Converter, QuantumEncoder, Smelter or Foundry!"),
                                        g + 1, *Parts[1]);
             return false;
         }
@@ -127,7 +134,7 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
 
             Token.ClockPercent = ClockSpeed;
         }
-        
+
         // Apply belt tier if specified
         if (BeltTier.IsSet())
         {

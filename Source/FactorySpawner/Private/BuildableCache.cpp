@@ -40,7 +40,13 @@ namespace
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
         {EBuildable::OilRefinery,
          "/Game/FactoryGame/Buildable/Factory/OilRefinery/Build_OilRefinery.Build_OilRefinery_C"},
-        {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"}};
+        {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"},
+        {EBuildable::Converter, "/Game/FactoryGame/Buildable/Factory/Converter/Build_Converter.Build_Converter_C"},
+        {EBuildable::ParticleAccelerator,
+         "/Game/FactoryGame/Buildable/Factory/HadronCollider/Build_HadronCollider.Build_HadronCollider_C"},
+        {EBuildable::QuantumEncoder,
+         "/Game/FactoryGame/Buildable/Factory/QuantumEncoder/Build_QuantumEncoder.Build_QuantumEncoder_C"},
+        {EBuildable::Packager, "/Game/FactoryGame/Buildable/Factory/Packager/Build_Packager.Build_Packager_C"}};
 
 } // namespace
 

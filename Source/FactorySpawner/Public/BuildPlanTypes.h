@@ -13,6 +13,10 @@ enum class EBuildable : uint8
     Manufacturer,
     OilRefinery,
     Blender,
+    Converter,
+    ParticleAccelerator,
+    QuantumEncoder,
+    Packager,
 
     // Utility
     Splitter,

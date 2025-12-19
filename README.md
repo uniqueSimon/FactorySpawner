@@ -2,14 +2,19 @@
 
 https://ficsit.app/mod/FactorySpawner
 
-**Version 2.0.0 - Major Update!**
+**Version 2.1.0 - Release (2025-12-19)**
 
 ## 🎉 What's New
+
+- 🆕 **Conveyor lifts added** — Adds more compact vertical designs; lift tier matches belt tier.
+- 🏭 **Added remaining production machines** — Packager, Converter, Particle Accelerator, Quantum Encoder.
+
+## From Version 2.0.0
 
 - 🔥 **Blueprint generation via chat commands** - No more schematics or recipes needed!
 - 🔄 **Automatic belt tier detection** - Uses your highest unlocked belt tier (Mk1-Mk6)
 - 💧 **Automatic pipeline tier** - Automatically uses Mk2 pipes when unlocked
-- ⚙️ **Optional belt tier override** - Force a specific belt tier with `beltTier {number}
+- ⚙️ **Optional belt tier override** - Force a specific belt tier with `beltTier {number}`
 
 ---
 
@@ -108,19 +113,7 @@ All placed buildables are just **vanilla ones**, so you can safely uninstall the
 
 # Known Issues
 
-- You can spawn machines that have not yet been unlocked, like manufacturers.
-
-# Future Plans
-
-- Add all remaining machines
-- Add conveyor lifts (Have to find out how to spawn them properly)
-- Add direct insertion from smelter -> constructor or constructor -> constructor, with command e.g.
-
-```bash
-/FactorySpawner 3 Smelter IngotIron & Constructor IronPlate, ...
-```
-
-- Support higher tier power poles (currently only Mk1 ones are spawned)
+- You can spawn machines that have not yet been unlocked.
 
 # Feedback on Discord
 
