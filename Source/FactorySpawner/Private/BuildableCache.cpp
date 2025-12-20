@@ -17,6 +17,24 @@ namespace
         return EnumPtr->GetNameStringByValue(static_cast<int64>(Value));
     }
 
+    // Helper: convert display name to PascalCase (e.g., "Iron Ingot" -> "IronIngot")
+    FString ToPascalCase(const FString& Input)
+    {
+        FString Result;
+        TArray<FString> Words;
+        Input.ParseIntoArray(Words, TEXT(" "), true);
+        
+        for (const FString& Word : Words)
+        {
+            if (!Word.IsEmpty())
+            {
+                Result += Word;
+            }
+        }
+        
+        return Result;
+    }
+
     // Generic soft class loader
     template <typename T> TSubclassOf<T> LoadClassSoft(const FString& Path, EBuildable Type)
     {
@@ -162,9 +180,26 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     TArray<TSubclassOf<UFGRecipe>> AvailableRecipes;
     AFGRecipeManager::Get(World)->GetAvailableRecipesForProducer(ProducedIn, AvailableRecipes);
 
+    // Try to find by class name first (e.g., "IngotIron" -> "Recipe_IngotIron_C")
     FString FormattedName = FString::Printf(TEXT("Recipe_%s_C"), *Recipe);
     TSubclassOf<UFGRecipe>* FoundRecipe = AvailableRecipes.FindByPredicate([&](const TSubclassOf<UFGRecipe>& R)
                                                                            { return R->GetName() == FormattedName; });
+
+    // If not found by class name, try to find by display name in PascalCase (e.g., "IronIngot" matches "Iron Ingot")
+    if (!FoundRecipe)
+    {
+        FoundRecipe = AvailableRecipes.FindByPredicate([&](const TSubclassOf<UFGRecipe>& R)
+        {
+            UFGRecipe* RecipeCDO = R->GetDefaultObject<UFGRecipe>();
+            if (RecipeCDO)
+            {
+                FString DisplayName = RecipeCDO->GetDisplayName().ToString();
+                FString PascalCaseDisplayName = ToPascalCase(DisplayName);
+                return PascalCaseDisplayName.Equals(Recipe, ESearchCase::IgnoreCase);
+            }
+            return false;
+        });
+    }
 
     if (!FoundRecipe)
     {
@@ -173,10 +208,19 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
         TArray<FString> Names;
         for (const auto& R : AvailableRecipes)
         {
+            UFGRecipe* RecipeCDO = R->GetDefaultObject<UFGRecipe>();
+            FString DisplayName = RecipeCDO ? RecipeCDO->GetDisplayName().ToString() : TEXT("");
+            FString PascalCaseDisplayName = ToPascalCase(DisplayName);
+            
             FString N = R->GetName();
             N.RemoveFromStart(TEXT("Recipe_"));
             N.RemoveFromEnd(TEXT("_C"));
-            Names.Add(N);
+            
+            // Show PascalCase display name and class name
+            if (!PascalCaseDisplayName.IsEmpty() && PascalCaseDisplayName != N)
+                Names.Add(FString::Printf(TEXT("%s (%s)"), *PascalCaseDisplayName, *N));
+            else
+                Names.Add(N);
         }
 
         FString Msg = Names.IsEmpty() ? FString::Printf(TEXT("Machine %s not unlocked yet!"), *ProducedInName)
