@@ -18,6 +18,11 @@ enum class EBuildable : uint8
     QuantumEncoder,
     Packager,
 
+    // Generators
+    CoalGenerator,
+    FuelGenerator,
+    NuclearReactor,
+
     // Utility
     Splitter,
     Merger,

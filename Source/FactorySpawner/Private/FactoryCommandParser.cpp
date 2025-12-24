@@ -18,6 +18,10 @@ static inline EBuildable ParseBuildableFromString(const FString& Input)
         {TEXT("hadroncollider"), EBuildable::ParticleAccelerator},
         {TEXT("quantumencoder"), EBuildable::QuantumEncoder},
         {TEXT("encoder"), EBuildable::QuantumEncoder},
+        {TEXT("coalgenerator"), EBuildable::CoalGenerator},
+        {TEXT("fuelgenerator"), EBuildable::FuelGenerator},
+        {TEXT("nuclearreactor"), EBuildable::NuclearReactor},
+        {TEXT("nuclearpowerplant"), EBuildable::NuclearReactor},
         {TEXT("packager"), EBuildable::Packager}};
 
     const EBuildable* Found = BuildableMap.Find(Input.ToLower());
@@ -97,7 +101,8 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
         {
             OutError = FString::Printf(TEXT("Group %d: unknown machine type '%s'. Choose: Constructor, "
                                             "Assembler, Manufacturer, Packager, Refinery, Blender, "
-                                            "ParticleAccelerator, Converter, QuantumEncoder, Smelter or Foundry!"),
+                                            "ParticleAccelerator, Converter, QuantumEncoder, Smelter, Foundry, "
+                                            "CoalGenerator, FuelGenerator or NuclearReactor!"),
                                        g + 1, *Parts[1]);
             return false;
         }

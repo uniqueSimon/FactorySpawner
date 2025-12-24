@@ -2,9 +2,14 @@
 
 https://ficsit.app/mod/FactorySpawner
 
-**Version 2.1.0 - Release (2025-12-19)**
+**Version 2.2.0 - Release (2025-12-24)**
 
 ## 🎉 What's New
+
+- ⚡ **Power generators added** — Coal Generator, Fuel Generator, Nuclear Power Plant.
+- 📝 **Display name support** — Type recipes as shown in-game (e.g., "IronIngot" instead of "IngotIron"). But both work.
+
+## From Version 2.1.0
 
 - 🆕 **Conveyor lifts added** — Adds more compact vertical designs; lift tier matches belt tier.
 - 🏭 **Added remaining production machines** — Packager, Converter, Particle Accelerator, Quantum Encoder.
@@ -51,7 +56,7 @@ A blueprint called "FactorySpawner" will be created. Just place it!
 (without curly braces)
 
 - **number** → Number of machines in a row
-- **machine type** → Smelter, Constructor, Assembler, Foundry, Manufacturer, Refinery or Blender
+- **machine type** → Smelter, Constructor, Assembler, Foundry, Manufacturer, Refinery, Blender, Packager, Converter, ParticleAccelerator, QuantumEncoder, CoalGenerator, FuelGenerator, NuclearReactor
 - **recipe** (optional) → e.g. IngotIron, IronPlate, Motor, Computer
 - **underclock** (optional) → The clock speed of each machine in the row (Value in %: 0 - 100)
 

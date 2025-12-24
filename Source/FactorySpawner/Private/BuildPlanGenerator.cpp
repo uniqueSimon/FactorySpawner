@@ -63,18 +63,18 @@ namespace
 
     // Machine configuration map (use helper factories from header)
     static const TMap<EBuildable, FMachineConfig> MachineConfigList = {
-        {EBuildable::Constructor, MakeMachineConfig(8, {MakeMachineConnections(9, {MakeConnector(1, 0)})},
+        {EBuildable::Constructor, MakeMachineConfig(8, 10, {MakeMachineConnections(9, {MakeConnector(1, 0)})},
                                                     {MakeMachineConnections(9, {MakeConnector(0, 0)})})},
-        {EBuildable::Smelter, MakeMachineConfig(5, {MakeMachineConnections(9, {MakeConnector(0, 0)})},
+        {EBuildable::Smelter, MakeMachineConfig(5, 10, {MakeMachineConnections(9, {MakeConnector(0, 0)})},
                                                 {MakeMachineConnections(8, {MakeConnector(1, 0)})})},
         {EBuildable::Foundry,
-         MakeMachineConfig(10, {MakeMachineConnections(11, {MakeConnector(2, -2), MakeConnector(0, 2, 2)})},
+         MakeMachineConfig(10, 10, {MakeMachineConnections(11, {MakeConnector(2, -2), MakeConnector(0, 2, 2)})},
                            {MakeMachineConnections(8, {MakeConnector(1, -2)})})},
         {EBuildable::Assembler,
-         MakeMachineConfig(9, {MakeMachineConnections(14, {MakeConnector(1, -2), MakeConnector(2, 2, 2)})},
+         MakeMachineConfig(9, 16, {MakeMachineConnections(14, {MakeConnector(1, -2), MakeConnector(2, 2, 2)})},
                            {MakeMachineConnections(11, {MakeConnector(0, 0)})})},
         {EBuildable::OilRefinery,
-         MakeMachineConfig(10,
+         MakeMachineConfig(10, 30,
                            {MakeMachineConnections(17, {MakeConnector(0, -2, 4)}, {MakeConnector(1, 2)}),
                             MakeMachineConnections(15, {}, {MakeConnector(1, 2)}),
                             MakeMachineConnections(15, {MakeConnector(0, -2)}, {})},
@@ -83,7 +83,7 @@ namespace
                             MakeMachineConnections(15, {MakeConnector(1, -2)}, {})})},
         {EBuildable::Blender,
          MakeMachineConfig(
-             18,
+             18, 16,
 
              {/*2S,2L*/
               MakeMachineConnections(15, {MakeConnector(1, 2, 6), MakeConnector(2, 6, 8)},
@@ -104,20 +104,20 @@ namespace
               MakeMachineConnections(12, {MakeConnector(0, -2)}, {})})},
         {EBuildable::Manufacturer,
          MakeMachineConfig(
-             18,
+             18, 20,
              {MakeMachineConnections(
                   17, {MakeConnector(4, -6), MakeConnector(2, -2, 2), MakeConnector(1, 2, 4), MakeConnector(0, 6, 6)}),
               MakeMachineConnections(17, {MakeConnector(4, -6), MakeConnector(2, -2, 2), MakeConnector(1, 2, 4)})},
              {MakeMachineConnections(13, {MakeConnector(3, 0)})})},
         {EBuildable::Converter,
-         MakeMachineConfig(16,
+         MakeMachineConfig(16, 16,
                            {/*2S*/ MakeMachineConnections(15, {MakeConnector(0, -2), MakeConnector(2, 2, 2)}),
                             /*1S*/ MakeMachineConnections(12, {MakeConnector(0, -2)}), MakeMachineConnections(8)},
                            {MakeMachineConnections(15, {MakeConnector(1, 2, 4)}, {MakeConnector(0, -2)}),
                             MakeMachineConnections(12, {}, {MakeConnector(0, -2)}),
                             MakeMachineConnections(12, {MakeConnector(1, 2)})})},
         {EBuildable::ParticleAccelerator,
-         MakeMachineConfig(37,
+         MakeMachineConfig(37, 35,
                            {/*2S,1L*/ MakeMachineConnections(19, {MakeConnector(0, 12, 4), MakeConnector(1, 16, 6)},
                                                              {MakeConnector(0, 8)}),
                             /*1S,1L*/ MakeMachineConnections(19, {MakeConnector(0, 12, 4)}, {MakeConnector(0, 8)}),
@@ -127,12 +127,19 @@ namespace
                            {MakeMachineConnections(17, {MakeConnector(2, 14)})})},
         {EBuildable::QuantumEncoder,
          MakeMachineConfig(
-             22,
+             22, 50,
              {MakeMachineConnections(33, {MakeConnector(2, -6, 4), MakeConnector(1, -2, 6), MakeConnector(3, 2, 8)},
                                      {MakeConnector(0, 6)})},
              {MakeMachineConnections(29, {MakeConnector(0, -2, 4)}, {MakeConnector(1, 2)})})},
+        {EBuildable::CoalGenerator,
+         MakeMachineConfig(10, 26, {MakeMachineConnections(20, {MakeConnector(0, -2, 4)}, {MakeConnector(0, 2)})},
+                           {MakeMachineConnections(13)})},
+        {EBuildable::FuelGenerator, MakeMachineConfig(20, 20, {MakeMachineConnections(14, {}, {MakeConnector(0, 0)})},
+                                                      {MakeMachineConnections(10)})},
+        {EBuildable::NuclearReactor, MakeMachineConfig(36, 43, {MakeMachineConnections(28, {MakeConnector(0, 2, 2)})},
+                                                       {MakeMachineConnections(22, {MakeConnector(1, -2, 0)})})},
         {EBuildable::Packager,
-         MakeMachineConfig(8,
+         MakeMachineConfig(8, 8,
                            {MakeMachineConnections(9, {MakeConnector(1, 0)}, {MakeConnector(0, 0, 2)}),
                             MakeMachineConnections(9, {}, {MakeConnector(0, 0, 2)}),
                             MakeMachineConnections(9, {MakeConnector(1, 0)})},
@@ -183,7 +190,8 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
     const FMachineConfig& Config = MachineConfigList[RowConfig.MachineType];
     int32 InputVariant = 0, OutputVariant = 0;
 
-    if (RowConfig.Recipe.IsSet())
+    if (RowConfig.Recipe.IsSet() && RowConfig.MachineType != EBuildable::CoalGenerator &&
+        RowConfig.MachineType != EBuildable::FuelGenerator && RowConfig.MachineType != EBuildable::NuclearReactor)
     {
         TSubclassOf<AFGBuildableManufacturer> MachineClass =
             Cache->GetBuildableClass<AFGBuildableManufacturer>(RowConfig.MachineType);
@@ -218,12 +226,12 @@ void FBuildPlanGenerator::ProcessRow(const FFactoryCommandToken& RowConfig, int3
         XCursor = FMath::CeilToInt((Config.Width * 100 - FirstMachineWidth) / 2.0f / 100) * 100;
     }
 
-    PlaceMachines(RowConfig, Config.Width * 100, InputConn, OutputConn);
+    PlaceMachines(RowConfig, Config.Width * 100, Config.Length * 100, InputConn, OutputConn);
     YCursor += OutputConn.Length * 100;
     CachedPowerConnections.LastMachine = CachedPowerConnections.LastPole = nullptr;
 }
 
-void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width,
+void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width, int32 Length,
                                         const FMachineConnections& InputConnections,
                                         const FMachineConnections& OutputConnections)
 {
@@ -234,13 +242,13 @@ void FBuildPlanGenerator::PlaceMachines(const FFactoryCommandToken& RowConfig, i
 
     for (int32 i = 0; i < RowConfig.Count; ++i)
     {
-        CalculateMachineSetup(RowConfig.MachineType, RowConfig.Recipe, RowConfig.ClockPercent, Width, InputConnections,
-                              OutputConnections, i == 0, i % 2 == 0, i == RowConfig.Count - 1);
+        CalculateMachineSetup(RowConfig.MachineType, RowConfig.Recipe, RowConfig.ClockPercent, Width, Length,
+                              InputConnections, OutputConnections, i == 0, i % 2 == 0, i == RowConfig.Count - 1);
         XCursor += Width;
     }
 }
 void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TOptional<FString>& Recipe,
-                                                const TOptional<float>& Underclock, int32 Width,
+                                                const TOptional<float>& Underclock, int32 Width, int32 Length,
                                                 const FMachineConnections& InputConnections,
                                                 const FMachineConnections& OutputConnections, bool bFirstUnitInRow,
                                                 bool bEvenIndex, bool bLastIndex)
@@ -260,7 +268,7 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
     }
     else
     {
-        FVector PoleLocation = FVector(XCursor - Width / 2.0f, YCursor - InputConnections.Length * 100 / 2.0f, 0);
+        FVector PoleLocation = FVector(XCursor - Width / 2.0f, YCursor - Length / 2.0f, 0);
         UFGPowerConnectionComponent* Pole = SpawnPowerPole(PoleLocation);
         SpawnWireAndConnect(Pole, MachinePowerConn);
 
@@ -298,10 +306,12 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
         SpawnLiftOrBeltAndConnect(Splitter[3], MachineBeltConn[Conn.Index]);
     }
 
+    // NuclearReactor outputs are at the input side
     for (const FConnector& Conn : OutputConnections.Belt)
     {
-        FVector Loc = MachineLocation +
-                      FVector(Conn.LocationX * 100, OutputConnections.Length * 100 - 200, 100 + Conn.LocationY * 100);
+        int32 YOffset = MachineType == EBuildable::NuclearReactor ? -InputConnections.Length * 100 + 200
+                                                                  : OutputConnections.Length * 100 - 200;
+        FVector Loc = MachineLocation + FVector(Conn.LocationX * 100, YOffset, 100 + Conn.LocationY * 100);
         TArray<UFGFactoryConnectionComponent*> Merger = SpawnSplitterOrMerger(Loc, EBuildable::Merger);
 
         if (!bFirstUnitInRow)
@@ -311,7 +321,8 @@ void FBuildPlanGenerator::CalculateMachineSetup(EBuildable MachineType, const TO
                 SpawnLiftOrBeltAndConnect(Merger[1], Prev);
         }
         ConnectionQueue.Output.Enqueue(Merger[0]);
-        SpawnLiftOrBeltAndConnect(MachineBeltConn[Conn.Index], Merger[2]);
+        SpawnLiftOrBeltAndConnect(MachineBeltConn[Conn.Index],
+                                  MachineType == EBuildable::NuclearReactor ? Merger[3] : Merger[2]);
     }
 
     for (const FConnector& Conn : InputConnections.Pipe)
@@ -372,25 +383,48 @@ void FBuildPlanGenerator::SpawnMachine(const FVector& Location, EBuildable Machi
                                        TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                                        TArray<UFGPipeConnectionComponent*>& outPipeConn)
 {
-    TSubclassOf<AFGBuildableManufacturer> MachineClass =
-        Cache->GetBuildableClass<AFGBuildableManufacturer>(MachineType);
-    FTransform Transform = MoveTransform(Location, MachineType == EBuildable::OilRefinery);
-    AFGBuildableManufacturer* Machine = World->SpawnActor<AFGBuildableManufacturer>(MachineClass, Transform);
+    FTransform Transform =
+        MoveTransform(Location, MachineType == EBuildable::OilRefinery || MachineType == EBuildable::CoalGenerator ||
+                                    MachineType == EBuildable::NuclearReactor);
 
-    if (Recipe.IsSet())
+    AFGBuildable* Spawned = nullptr;
+
+    if (MachineType == EBuildable::CoalGenerator || MachineType == EBuildable::FuelGenerator ||
+        MachineType == EBuildable::NuclearReactor)
     {
-        TSubclassOf<UFGRecipe> RecipeClass = Cache->GetRecipeClass(Recipe.GetValue(), MachineClass, World);
-        if (Underclock.IsSet() && RCO && Player)
-            RCO->Server_PasteSettings(Machine, Player, RecipeClass, Underclock.GetValue() / 100.0f, 1.0f, nullptr,
-                                      nullptr);
-        else
-            Machine->SetRecipe(RecipeClass);
+        TSubclassOf<AFGBuildableFactory> Class = Cache->GetBuildableClass<AFGBuildableFactory>(MachineType);
+        Spawned = World->SpawnActor<AFGBuildableFactory>(Class, Transform);
+    }
+    else
+    {
+        TSubclassOf<AFGBuildableManufacturer> ManClass =
+            Cache->GetBuildableClass<AFGBuildableManufacturer>(MachineType);
+        AFGBuildableManufacturer* Man = World->SpawnActor<AFGBuildableManufacturer>(ManClass, Transform);
+        if (Recipe.IsSet())
+        {
+            TSubclassOf<UFGRecipe> RecipeClass = Cache->GetRecipeClass(Recipe.GetValue(), ManClass, World);
+            if (RecipeClass)
+            {
+                if (Underclock.IsSet() && RCO && Player)
+                {
+                    RCO->Server_PasteSettings(Man, Player, RecipeClass, Underclock.GetValue() / 100.0f, 1.0f, nullptr,
+                                              nullptr);
+                }
+                else
+                {
+                    Man->SetRecipe(RecipeClass);
+                }
+            }
+        }
+        Spawned = Man;
     }
 
-    BuildablesForBlueprint.Add(Machine);
-    outPowerConn = GetConnections<UFGPowerConnectionComponent>(Machine)[0];
-    outBeltConn = GetConnections<UFGFactoryConnectionComponent>(Machine);
-    outPipeConn = GetConnections<UFGPipeConnectionComponent>(Machine);
+    BuildablesForBlueprint.Add(Spawned);
+
+    TArray<UFGPowerConnectionComponent*> PowerConns = GetConnections<UFGPowerConnectionComponent>(Spawned);
+    outPowerConn = PowerConns[0];
+    outBeltConn = GetConnections<UFGFactoryConnectionComponent>(Spawned);
+    outPipeConn = GetConnections<UFGPipeConnectionComponent>(Spawned);
 }
 
 TArray<UFGFactoryConnectionComponent*> FBuildPlanGenerator::SpawnSplitterOrMerger(const FVector& Location,
@@ -418,8 +452,8 @@ void FBuildPlanGenerator::SpawnLiftOrBeltAndConnect(UFGFactoryConnectionComponen
 
     // Quantum encoder has an input port that is further away and we need a belt instead of a lift
     // Lift needs some height difference and not too far apart horizontally
-    const float MinVerticalForLift =400.0f;
-    const float MaxHorizontalForLift =600.0f;
+    const float MinVerticalForLift = 400.0f;
+    const float MaxHorizontalForLift = 600.0f;
 
     const bool bUseLift = (DZ >= MinVerticalForLift) && (DX <= MaxHorizontalForLift) && (DY <= MaxHorizontalForLift);
 

@@ -23,7 +23,7 @@ namespace
         FString Result;
         TArray<FString> Words;
         Input.ParseIntoArray(Words, TEXT(" "), true);
-        
+
         for (const FString& Word : Words)
         {
             if (!Word.IsEmpty())
@@ -31,7 +31,7 @@ namespace
                 Result += Word;
             }
         }
-        
+
         return Result;
     }
 
@@ -64,8 +64,13 @@ namespace
          "/Game/FactoryGame/Buildable/Factory/HadronCollider/Build_HadronCollider.Build_HadronCollider_C"},
         {EBuildable::QuantumEncoder,
          "/Game/FactoryGame/Buildable/Factory/QuantumEncoder/Build_QuantumEncoder.Build_QuantumEncoder_C"},
+        {EBuildable::CoalGenerator,
+         "/Game/FactoryGame/Buildable/Factory/GeneratorCoal/Build_GeneratorCoal.Build_GeneratorCoal_C"},
+        {EBuildable::FuelGenerator,
+         "/Game/FactoryGame/Buildable/Factory/GeneratorFuel/Build_GeneratorFuel.Build_GeneratorFuel_C"},
+        {EBuildable::NuclearReactor,
+         "/Game/FactoryGame/Buildable/Factory/GeneratorNuclear/Build_GeneratorNuclear.Build_GeneratorNuclear_C"},
         {EBuildable::Packager, "/Game/FactoryGame/Buildable/Factory/Packager/Build_Packager.Build_Packager_C"}};
-
 } // namespace
 
 //-------------------------------------------------
@@ -188,17 +193,18 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
     // If not found by class name, try to find by display name in PascalCase (e.g., "IronIngot" matches "Iron Ingot")
     if (!FoundRecipe)
     {
-        FoundRecipe = AvailableRecipes.FindByPredicate([&](const TSubclassOf<UFGRecipe>& R)
-        {
-            UFGRecipe* RecipeCDO = R->GetDefaultObject<UFGRecipe>();
-            if (RecipeCDO)
+        FoundRecipe = AvailableRecipes.FindByPredicate(
+            [&](const TSubclassOf<UFGRecipe>& R)
             {
-                FString DisplayName = RecipeCDO->GetDisplayName().ToString();
-                FString PascalCaseDisplayName = ToPascalCase(DisplayName);
-                return PascalCaseDisplayName.Equals(Recipe, ESearchCase::IgnoreCase);
-            }
-            return false;
-        });
+                UFGRecipe* RecipeCDO = R->GetDefaultObject<UFGRecipe>();
+                if (RecipeCDO)
+                {
+                    FString DisplayName = RecipeCDO->GetDisplayName().ToString();
+                    FString PascalCaseDisplayName = ToPascalCase(DisplayName);
+                    return PascalCaseDisplayName.Equals(Recipe, ESearchCase::IgnoreCase);
+                }
+                return false;
+            });
     }
 
     if (!FoundRecipe)
@@ -211,11 +217,11 @@ TSubclassOf<UFGRecipe> UBuildableCache::GetRecipeClass(const FString& Recipe,
             UFGRecipe* RecipeCDO = R->GetDefaultObject<UFGRecipe>();
             FString DisplayName = RecipeCDO ? RecipeCDO->GetDisplayName().ToString() : TEXT("");
             FString PascalCaseDisplayName = ToPascalCase(DisplayName);
-            
+
             FString N = R->GetName();
             N.RemoveFromStart(TEXT("Recipe_"));
             N.RemoveFromEnd(TEXT("_C"));
-            
+
             // Show PascalCase display name and class name
             if (!PascalCaseDisplayName.IsEmpty() && PascalCaseDisplayName != N)
                 Names.Add(FString::Printf(TEXT("%s (%s)"), *PascalCaseDisplayName, *N));

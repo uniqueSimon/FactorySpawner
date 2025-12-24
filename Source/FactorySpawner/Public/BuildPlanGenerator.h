@@ -45,6 +45,7 @@ struct FMachineConnections
 struct FMachineConfig
 {
     int32 Width = 0;
+    int32 Length = 0;
     TArray<FMachineConnections> InputConnections;
     TArray<FMachineConnections> OutputConnections;
 };
@@ -57,10 +58,11 @@ inline FMachineConnections MakeMachineConnections(int32 Length, std::initializer
     return {Length, TArray<FConnector>(Belt), TArray<FConnector>(Pipe)};
 }
 
-inline FMachineConfig MakeMachineConfig(int32 Width, std::initializer_list<FMachineConnections> Inputs = {},
+inline FMachineConfig MakeMachineConfig(int32 Width, int32 Length,
+                                        std::initializer_list<FMachineConnections> Inputs = {},
                                         std::initializer_list<FMachineConnections> Outputs = {})
 {
-    return {Width, TArray<FMachineConnections>(Inputs), TArray<FMachineConnections>(Outputs)};
+    return {Width, Length, TArray<FMachineConnections>(Inputs), TArray<FMachineConnections>(Outputs)};
 }
 
 class FBuildPlanGenerator
@@ -72,10 +74,10 @@ class FBuildPlanGenerator
 
   private:
     void ProcessRow(const FFactoryCommandToken& RowConfig, int32 RowIndex);
-    void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width, const FMachineConnections& InputConnections,
-                       const FMachineConnections& OutputConnections);
+    void PlaceMachines(const FFactoryCommandToken& RowConfig, int32 Width, int32 Length,
+                       const FMachineConnections& InputConnections, const FMachineConnections& OutputConnections);
     void CalculateMachineSetup(EBuildable MachineType, const TOptional<FString>& Recipe,
-                               const TOptional<float>& Underclock, int32 Width,
+                               const TOptional<float>& Underclock, int32 Width, int32 Length,
                                const FMachineConnections& InputConnections,
                                const FMachineConnections& OutputConnections, bool bFirstUnitInRow, bool bEvenIndex,
                                bool bLastIndex);
@@ -86,8 +88,7 @@ class FBuildPlanGenerator
                       TArray<UFGFactoryConnectionComponent*>& outBeltConn,
                       TArray<UFGPipeConnectionComponent*>& outPipeConn);
     TArray<UFGFactoryConnectionComponent*> SpawnSplitterOrMerger(const FVector& Location, EBuildable SplitterOrMerger);
-    void SpawnLiftOrBeltAndConnect(UFGFactoryConnectionComponent* From,
-                                   UFGFactoryConnectionComponent* To);
+    void SpawnLiftOrBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
     void SpawnBeltAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
     void SpawnLiftAndConnect(UFGFactoryConnectionComponent* From, UFGFactoryConnectionComponent* To);
     TArray<UFGPipeConnectionComponent*> SpawnPipeCross(const FVector& Location);
