@@ -4,6 +4,8 @@ https://ficsit.app/mod/FactorySpawner
 
 **Version 2.2.0 - Release (2025-12-24)**
 
+**License:** [MIT](LICENSE)
+
 ## 🎉 What's New
 
 - ⚡ **Power generators added** — Coal Generator, Fuel Generator, Nuclear Power Plant.
