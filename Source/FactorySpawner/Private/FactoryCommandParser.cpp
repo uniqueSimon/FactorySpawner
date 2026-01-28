@@ -53,7 +53,7 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
 
         // Parse the tier number
         int32 Tier;
-        if (!LexTryParseString(Tier, *BeltTierPart) || Tier < 1 || Tier > 5)
+        if (!LexTryParseString(Tier, *BeltTierPart) || Tier < 1 || Tier > 6)
         {
             OutError = FString::Printf(TEXT("beltTier must be 1-6, got '%s'"), *BeltTierPart);
             return false;
