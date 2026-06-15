@@ -2,6 +2,10 @@
 
 https://ficsit.app/mod/FactorySpawner
 
+**Version 2.3.0 - Satisfactory 1.2 compatibility update (2026-06-15)**
+
+- 🔧 Updated for Satisfactory 1.2 / SML 3.12 (Unreal Engine 5.6)
+
 **Version 2.2.0 - Release (2025-12-24)**
 
 **License:** [MIT](LICENSE)

@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
-	"Version": 2,
-	"VersionName": "2.2.0",
+	"Version": 3,
+	"VersionName": "2.3.0",
 	"FriendlyName": "FactorySpawner",
 	"Description": "Spawn factories instantly by typing in what machines and recipes you want — everything auto-connects with belts and power.",
 	"Category": "Modding",
@@ -25,9 +25,9 @@
 		{
 			"Name": "SML",
 			"Enabled": true,
-			"SemVersion": "^3.11.3"
+			"SemVersion": "^3.12.0"
 		}
 	],
-	"SemVersion": "2.2.0",
-	"GameVersion": ">=416835"
+	"SemVersion": "2.3.0",
+	"GameVersion": ">=1.0"
 }

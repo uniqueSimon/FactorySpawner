@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "ChatCommandInstance.h"
+#include "Command/ChatCommandInstance.h"
 #include "BuildPlanTypes.h"
 #include "FactorySpawnerChat.generated.h"
 
