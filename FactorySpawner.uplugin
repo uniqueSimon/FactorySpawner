@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"Version": 3,
+	"Version": 2,
 	"VersionName": "2.3.0",
 	"FriendlyName": "FactorySpawner",
 	"Description": "Spawn factories instantly by typing in what machines and recipes you want — everything auto-connects with belts and power.",
