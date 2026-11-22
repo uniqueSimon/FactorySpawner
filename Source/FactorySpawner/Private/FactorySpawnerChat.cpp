@@ -7,6 +7,7 @@
 #include "FactoryCommandParser.h"
 #include "FactorySpawner.h"
 #include "BuildPlanGenerator.h"
+#include "ProductionPlan.h"
 #include "EngineUtils.h"
 
 AFactorySpawnerChat* AFactorySpawnerChat::Get(UWorld* World)
@@ -51,8 +52,8 @@ AFactorySpawnerChat::AFactorySpawnerChat()
 {
     CommandName = TEXT("FactorySpawner");
     MinNumberOfArguments = 2;
-    Usage = FText::FromString("Usage: /FactorySpawner <number> <machine type 1> <recipe 1>, <number> <machine type 2> "
-                              "<recipe 2>, beltTier <number>");
+    Usage = FText::FromString(TEXT("/FactorySpawner <count> <machine> [recipe] [clock%] [floor=N], ... "
+                                  "[beltTier N], [floorHeight metres] or /FactorySpawner plan|build Item=rate, ..."));
 }
 
 EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSender* Sender,
@@ -62,9 +63,13 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     FString Joined = FString::Join(Arguments, TEXT(" "));
     Sender->SendChatMessage(FString::Printf(TEXT("/FactorySpawner %s"), *Joined), FLinearColor::Green);
 
-    TArray<FFactoryCommandToken> CommandTokens;
+    FFactoryCommand Command;
     FString Error;
-    if (!FFactoryCommandParser::ParseCommand(Joined, CommandTokens, Error))
+    FProductionRequest Request;
+    const bool bProduction = Joined.StartsWith(TEXT("plan ")) || Joined.StartsWith(TEXT("build "));
+    const bool bParsed = bProduction ? ParseProductionRequest(Joined, Request, Error)
+                                      : FFactoryCommandParser::ParseCommand(Joined, Command, Error);
+    if (!bParsed)
     {
         UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *Error);
         Sender->SendChatMessage(Error);
@@ -75,10 +80,11 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
 
     // Determine belt tier to use
     int32 BeltTier = 1;
-    if (CommandTokens.Num() > 0 && CommandTokens[0].BeltTier.IsSet())
+    const TOptional<int32>& RequestedTier = bProduction ? Request.BeltTier : Command.BeltTier;
+    if (RequestedTier.IsSet())
     {
         // Use explicitly provided belt tier from inline parameter
-        BeltTier = CommandTokens[0].BeltTier.GetValue();
+        BeltTier = RequestedTier.GetValue();
     }
     else
     {
@@ -96,6 +102,28 @@ EExecutionStatus AFactorySpawnerChat::ExecuteCommand_Implementation(UCommandSend
     Sender->SendChatMessage(FString::Printf(TEXT("Using Belt Tier: Mk%d, Pipeline Tier: Mk%d"), BeltTier, PipelineTier),
                             FLinearColor::Gray);
 
-    FBuildPlanGenerator(World, BuildableCache).Generate(CommandTokens);
+    FProductionPlan Plan;
+    if (bProduction)
+    {
+        if (!BuildProductionPlan(World, BuildableCache, Request, BeltTier, PipelineTier, Command, Plan, Error))
+        {
+            Sender->SendChatMessage(Error);
+            return EExecutionStatus::UNCOMPLETED;
+        }
+        const FString Summary = DescribeProduction(Command, Plan);
+        UE_LOG(LogFactorySpawner, Display, TEXT("%s"), *Summary);
+        Sender->SendChatMessage(Summary, FLinearColor::Gray);
+        if (Request.bPreview)
+            return EExecutionStatus::COMPLETED;
+    }
+
+    if (!FBuildPlanGenerator(World, BuildableCache).Generate(Command, Error, bProduction ? &Plan : nullptr))
+    {
+        UE_LOG(LogFactorySpawner, Warning, TEXT("%s"), *Error);
+        Sender->SendChatMessage(Error);
+        return EExecutionStatus::UNCOMPLETED;
+    }
+    UE_LOG(LogFactorySpawner, Display, TEXT("Blueprint generated: FactorySpawner (%d rows)"), Command.Rows.Num());
+    Sender->SendChatMessage(TEXT("Blueprint generated: FactorySpawner"), FLinearColor::Green);
     return EExecutionStatus::COMPLETED;
 }

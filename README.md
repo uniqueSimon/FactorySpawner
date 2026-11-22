@@ -88,6 +88,41 @@ Here is the config from the screenshot (without recipes).
 /FactorySpawner 12 Smelter, 10 Constructor, 5 Foundry, 10 Constructor, 4 Assembler, 3 Manufacturer
 ```
 
+## Production planner
+
+Use `plan` to preview inputs, outputs and estimated machine power. Use `build` to create the blueprint.
+
+```text
+/FactorySpawner plan IronPlateReinforced=5
+/FactorySpawner build Motor=20, Stator=10, import SteelPipe, floorHeight 40
+/FactorySpawner build Plastic=20, export HeavyOilResidue
+/FactorySpawner plan SpaceElevatorPart_12=1
+```
+
+Targets and interfaces use units/min for solid items or m³/min for fluids. Names can be localized display names or internal identifiers. For example, the AI Expansion Server can also be requested as `SpaceElevatorPart_12=1`. Use comma-separated settings:
+
+- `import Item` uses an external supply of that item.
+- `recipe Item=RecipeName` chooses a specific unlocked recipe for an item.
+- `export Item` exports production of that item as a byproduct instead of using it inside the factory.
+- `floor RecipeName=3` sets the floor of a recipe.
+- `floorHeight 48` sets the minimum floor spacing in metres for a production plan. `beltTier 5` selects the belt and lift tier.
+
+The planner works from unlocked recipes and shares upstream production between targets. It packs machine rows into parallel bands, groups machines taller than 12 m on one equipment floor, and rounds each deck spacing up to the next metre after leaving 1.5 m of clearance below the next foundation. An explicit `floor` assignment takes priority. Surplus byproducts get labeled outlets. If a closed recycling loop cannot start with the available inputs, the planner reports the missing starter supply. Use `import` to feed that material from outside.
+
+The `build` command saves a blueprint named `FactorySpawner` in the current game session. Each successful build replaces that named blueprint. Rename it in the game if you want to keep multiple designs. After placing it, connect the labeled material inputs and the `FACTORY POWER IN` pole. Solid inputs and outlets are arranged along the ground-level sides near their production rows. Pipe ports are grouped at the front. Supply liquids with enough pressure and keep product and byproduct outlets clear.
+
+## Multi-floor Blueprints
+
+Add `floor=N` after a row's recipe and optional clock speed. Floors are numbered 1–8 and rows without a floor use floor 1.
+
+```text
+/FactorySpawner 2 Smelter IngotIron floor=1, 3 Constructor IronPlate floor=2, beltTier 3
+```
+
+The rows on each floor share an 8 m foundation grid. For explicit machine-row commands, floors are 32 m apart by default. Add a comma-separated `floorHeight 48` setting to set the spacing in metres (16–64 m). Higher floors can be entered before lower floors when the recipe needs a downward conveyor.
+
+In a multi-floor blueprint, each identified solid ingredient can be connected to an unused matching output from the nearest earlier row. Each output serves one input. Horizontal belts link the layouts on the same floor and feed lift sections outside the platforms for cross-floor routes. Any unpaired or unidentified ports stay available for external connections. Fluid pipes are built within their rows.
+
 ## Automatic Tier Selection
 
 The mod **automatically detects and uses your highest unlocked belt and pipeline tiers**!

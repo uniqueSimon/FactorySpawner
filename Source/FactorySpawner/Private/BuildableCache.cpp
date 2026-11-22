@@ -53,9 +53,17 @@ namespace
                              "Build_ConveyorAttachmentMerger.Build_ConveyorAttachmentMerger_C"},
         {EBuildable::PowerPole,
          "/Game/FactoryGame/Buildable/Factory/PowerPoleMk1/Build_PowerPoleMk1.Build_PowerPoleMk1_C"},
+        {EBuildable::Foundation, "/Game/FactoryGame/Buildable/Building/Foundation/"
+                                  "Build_Foundation_8x1_01.Build_Foundation_8x1_01_C"},
         {EBuildable::PowerLine, "/Game/FactoryGame/Buildable/Factory/PowerLine/Build_PowerLine.Build_PowerLine_C"},
         {EBuildable::PipeCross, "/Game/FactoryGame/Buildable/Factory/PipeJunction/"
                                 "Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C"},
+        {EBuildable::PipePump, "/Game/FactoryGame/Buildable/Factory/PipePump/Build_PipelinePump.Build_PipelinePump_C"},
+        {EBuildable::PipeValve, "/Game/FactoryGame/Buildable/Factory/PipeValve/Build_Valve.Build_Valve_C"},
+        {EBuildable::SmartSplitter, "/Game/FactoryGame/Buildable/Factory/CA_SplitterSmart/"
+                                    "Build_ConveyorAttachmentSplitterSmart.Build_ConveyorAttachmentSplitterSmart_C"},
+        {EBuildable::PortSign, "/Game/FactoryGame/Buildable/Factory/SignDigital/"
+                               "Build_StandaloneWidgetSign_SmallWide.Build_StandaloneWidgetSign_SmallWide_C"},
         {EBuildable::OilRefinery,
          "/Game/FactoryGame/Buildable/Factory/OilRefinery/Build_OilRefinery.Build_OilRefinery_C"},
         {EBuildable::Blender, "/Game/FactoryGame/Buildable/Factory/Blender/Build_Blender.Build_Blender_C"},

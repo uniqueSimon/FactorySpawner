@@ -1,5 +1,4 @@
 #include "FactoryCommandParser.h"
-#include "FactorySpawnerChat.h"
 
 static inline EBuildable ParseBuildableFromString(const FString& Input)
 {
@@ -28,44 +27,16 @@ static inline EBuildable ParseBuildableFromString(const FString& Input)
     return Found ? *Found : EBuildable::Invalid;
 }
 
-bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCommandToken>& OutTokens,
-                                         FString& OutError)
+bool FFactoryCommandParser::ParseCommand(const FString& Input, FFactoryCommand& OutCommand, FString& OutError)
 {
-    OutTokens.Reset();
+    OutCommand = {};
+    OutError.Reset();
+    FFactoryCommand Command;
+    bool bHasFloorHeight = false;
 
-    // Check for optional beltTier parameter at the end
-    TOptional<int32> BeltTier;
-    FString CommandInput = Input;
-
-    // Look for "beltTier N" pattern (case-insensitive)
-    int32 BeltTierIndex = CommandInput.Find(TEXT("beltTier"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-    if (BeltTierIndex != INDEX_NONE)
-    {
-        // Extract everything after "beltTier"
-        FString BeltTierPart = CommandInput.RightChop(BeltTierIndex + 8).TrimStartAndEnd(); // 8 = len("beltTier")
-
-        // Check if there's a comma before beltTier
-        FString BeforeBeltTier = CommandInput.Left(BeltTierIndex).TrimEnd();
-        if (BeforeBeltTier.EndsWith(TEXT(",")))
-        {
-            BeforeBeltTier = BeforeBeltTier.LeftChop(1).TrimEnd();
-        }
-
-        // Parse the tier number
-        int32 Tier;
-        if (!LexTryParseString(Tier, *BeltTierPart) || Tier < 1 || Tier > 6)
-        {
-            OutError = FString::Printf(TEXT("beltTier must be 1-6, got '%s'"), *BeltTierPart);
-            return false;
-        }
-
-        BeltTier = Tier;
-        CommandInput = BeforeBeltTier;
-    }
-
-    // Split groups by comma
+    // Split rows and whole-command options by comma.
     TArray<FString> Groups;
-    CommandInput.ParseIntoArray(Groups, TEXT(","), true);
+    Input.ParseIntoArray(Groups, TEXT(","), true);
 
     for (int32 g = 0; g < Groups.Num(); ++g)
     {
@@ -76,11 +47,56 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
         TArray<FString> Parts;
         Group.ParseIntoArrayWS(Parts);
 
-        // Enforce 2 - 4 parts
+        // Parse optional beltTier and floorHeight settings as standalone groups.
+        const bool bBeltTier = Parts[0].Equals(TEXT("beltTier"), ESearchCase::IgnoreCase);
+        const bool bFloorHeight = Parts[0].Equals(TEXT("floorHeight"), ESearchCase::IgnoreCase);
+        if (bBeltTier || bFloorHeight)
+        {
+            const int32 Minimum = bBeltTier ? 1 : 16;
+            const int32 Maximum = bBeltTier ? 6 : 64;
+            int32 Value;
+            if (Parts.Num() != 2 || !LexTryParseString(Value, *Parts[1]) || Value < Minimum || Value > Maximum)
+            {
+                OutError = FString::Printf(TEXT("Group %d: %s must be %d-%d"), g + 1, *Parts[0], Minimum, Maximum);
+                return false;
+            }
+            if ((bBeltTier && Command.BeltTier.IsSet()) || (bFloorHeight && bHasFloorHeight))
+            {
+                OutError = FString::Printf(TEXT("Group %d: duplicate %s setting"), g + 1, *Parts[0]);
+                return false;
+            }
+            if (bBeltTier)
+                Command.BeltTier = Value;
+            else
+            {
+                Command.FloorHeightMeters = Value;
+                bHasFloorHeight = true;
+            }
+            continue;
+        }
+
+        int32 Floor = 1;
+        if (Parts.Last().StartsWith(TEXT("floor="), ESearchCase::IgnoreCase))
+        {
+            const FString FloorPart = Parts.Pop().RightChop(6);
+            if (!LexTryParseString(Floor, *FloorPart) || Floor < 1 || Floor > 8)
+            {
+                OutError = FString::Printf(TEXT("Group %d: floor must be 1-8, got '%s'"), g + 1, *FloorPart);
+                return false;
+            }
+        }
+
+        if (Parts.ContainsByPredicate([](const FString& Part) { return Part.StartsWith(TEXT("floor=")); }))
+        {
+            OutError = FString::Printf(TEXT("Group %d: add floor=N once, at the end of the machine row"), g + 1);
+            return false;
+        }
+
+        // Enforce 2 - 4 machine tokens after the optional floor suffix.
         if (Parts.Num() < 2 || Parts.Num() > 4)
         {
             OutError = FString::Printf(
-                TEXT("Group %d: expected 2 - 4 tokens (count machine [recipe] [clock%%]), got %d: '%s'"), g + 1,
+                TEXT("Group %d: expected count machine [recipe] [clock%%] [floor=N], got %d tokens: '%s'"), g + 1,
                 Parts.Num(), *Group);
             return false;
         }
@@ -93,6 +109,7 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
         }
 
         FFactoryCommandToken Token{Count};
+        Token.Floor = Floor;
 
         // Part 2: machine type
 
@@ -131,7 +148,7 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
                 return false;
             }
 
-            if (ClockSpeed <= 0.0f || ClockSpeed >= 100.0f)
+            if (!FMath::IsFinite(ClockSpeed) || ClockSpeed <= 0.0f || ClockSpeed >= 100.0f)
             {
                 OutError = FString::Printf(TEXT("Group %d: clock must be 0-100, got %.1f"), g + 1, ClockSpeed);
                 return false;
@@ -140,14 +157,14 @@ bool FFactoryCommandParser::ParseCommand(const FString& Input, TArray<FFactoryCo
             Token.ClockPercent = ClockSpeed;
         }
 
-        // Apply belt tier if specified
-        if (BeltTier.IsSet())
-        {
-            Token.BeltTier = BeltTier.GetValue();
-        }
-
-        OutTokens.Add(Token);
+        Command.Rows.Add(MoveTemp(Token));
     }
 
+    if (Command.Rows.IsEmpty())
+    {
+        OutError = TEXT("Specify at least one machine row");
+        return false;
+    }
+    OutCommand = MoveTemp(Command);
     return true;
 }
